@@ -1,0 +1,7 @@
+@extends('layouts.cavernas')
+
+@section('content')
+<section class="page-heading page-heading-theme compact-heading"><p class="eyebrow">Administrator panel</p><h1>Ownership<br><em>history.</em></h1><p>Audit purchases and free character transfers across Cavernas.</p></section>
+<section class="admin-management-card admin-filter-panel"><form method="GET" class="admin-filter-form"><label>Actor<input type="search" name="search" value="{{ $search }}" placeholder="Player name"></label><label>Action<select name="action"><option value="">All movement</option><option value="character.purchased" @selected($action === 'character.purchased')>Purchases</option><option value="character.transferred" @selected($action === 'character.transferred')>Transfers</option></select></label><button class="button button-primary" type="submit">Filter</button>@if ($search || $action)<a class="text-link" href="{{ route('admin.ownership.index') }}">Clear</a>@endif</form></section>
+<section class="admin-management-card"><div class="section-heading"><div><p class="eyebrow">Recent events</p><h2>Character movement.</h2></div></div>@forelse ($events as $event)<div class="admin-item-row"><div><strong>{{ str_replace('character.', '', $event->action) }}</strong><span>Character #{{ $event->auditable_id }} · {{ $event->actor->name }}</span></div><time>{{ $event->created_at->format('M j, Y g:i A') }}</time></div>@empty<p class="form-intro">No ownership events have been recorded.</p>@endforelse{{ $events->links() }}</section>
+@endsection

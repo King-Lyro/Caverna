@@ -36,7 +36,7 @@ class ForumController extends Controller
     {
         return view('forum.thread', [
             'thread' => $thread->load(['board.category', 'author']),
-            'posts' => $thread->posts()->with('author')->oldest()->paginate(20),
+            'posts' => $thread->posts()->with(['author', 'character'])->oldest()->paginate(20),
             'characters' => auth()->user() ? Character::where('user_id', auth()->id())->where('status', 'active')->orderBy('name')->get() : collect(),
         ]);
     }

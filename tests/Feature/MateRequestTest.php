@@ -36,6 +36,17 @@ class MateRequestTest extends TestCase
         $this->assertDatabaseHas('characters', ['id' => $to->id, 'mate' => 'Ember']);
     }
 
+    public function test_an_ordinary_character_under_twelve_moons_cannot_request_a_mate(): void
+    {
+        $sender = User::factory()->create(['status' => 'approved']);
+        $recipient = User::factory()->create(['status' => 'approved']);
+        $from = $this->character($sender, 'Ember');
+        $from->update(['age_moons' => 11.5]);
+        $to = $this->character($recipient, 'Rain');
+
+        $this->actingAs($sender)->post(route('characters.mate-request', $to), ['from_character_id' => $from->id])->assertStatus(422);
+    }
+
     private function character(User $user, string $name): Character
     {
         return Character::create(['user_id' => $user->id, 'name' => $name, 'sex' => 'female', 'age_moons' => 12, 'allegiance' => 'ThunderClan', 'looks' => 'A careful gaze.', 'appearance' => 'Appearance.', 'personality' => 'Personality.', 'history' => 'History.', 'energy' => 100, 'status' => 'active']);

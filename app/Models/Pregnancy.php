@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Pregnancy extends Model
 {
-    protected $fillable = ['female_character_id', 'male_character_id', 'mates', 'conceived_at', 'due_at', 'status'];
+    protected $fillable = ['female_character_id', 'male_character_id', 'previous_female_role', 'mates', 'conceived_at', 'due_at', 'status'];
 
     protected function casts(): array
     {

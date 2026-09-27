@@ -57,4 +57,32 @@ class ShopPurchaseTest extends TestCase
         $this->assertSame([], $character->ailments);
         $this->assertSame('healthy', $character->health_status);
     }
+
+    public function test_member_can_use_energy_return_and_energy_recover_items(): void
+    {
+        $user = User::factory()->create(['status' => 'approved']);
+        $returnItem = ShopItem::create(['name' => 'Energy return', 'slug' => 'energy-return-test', 'description' => 'Return energy.', 'cost' => 20, 'effect' => 'Energy return']);
+        $recoverItem = ShopItem::create(['name' => 'Energy recover', 'slug' => 'energy-recover-test', 'description' => 'Recover energy.', 'cost' => 80, 'effect' => 'Energy recover']);
+        $returnInventory = Inventory::create(['user_id' => $user->id, 'shop_item_id' => $returnItem->id, 'quantity' => 1]);
+        $recoverInventory = Inventory::create(['user_id' => $user->id, 'shop_item_id' => $recoverItem->id, 'quantity' => 1]);
+        $character = Character::create(['user_id' => $user->id, 'name' => 'Ash', 'sex' => 'female', 'age_moons' => 12, 'allegiance' => 'ThunderClan', 'looks' => 'A bright coat.', 'appearance' => 'Appearance.', 'personality' => 'Personality.', 'history' => 'History.', 'energy' => 50, 'status' => 'active']);
+
+        $this->actingAs($user)->post(route('inventory.use', $returnInventory), ['character_id' => $character->id])->assertRedirect();
+        $this->assertSame(60, $character->fresh()->energy);
+        $this->actingAs($user)->post(route('inventory.use', $recoverInventory), ['character_id' => $character->id])->assertRedirect();
+        $this->assertSame(100, $character->fresh()->energy);
+    }
+
+    public function test_member_can_apply_a_special_profile_item_once(): void
+    {
+        $user = User::factory()->create(['status' => 'approved']);
+        $item = ShopItem::create(['name' => 'Purebred', 'slug' => 'purebred-test', 'description' => 'Purebred.', 'cost' => 3500, 'effect' => 'Purebred']);
+        $inventory = Inventory::create(['user_id' => $user->id, 'shop_item_id' => $item->id, 'quantity' => 1]);
+        $character = Character::create(['user_id' => $user->id, 'name' => 'Ash', 'sex' => 'female', 'age_moons' => 12, 'allegiance' => 'ThunderClan', 'looks' => 'A bright coat.', 'appearance' => 'Appearance.', 'personality' => 'Personality.', 'history' => 'History.', 'energy' => 100, 'status' => 'active']);
+
+        $this->actingAs($user)->post(route('inventory.use', $inventory), ['character_id' => $character->id])->assertRedirect();
+
+        $this->assertContains('Purebred', $character->fresh()->traits);
+        $this->assertDatabaseHas('character_items', ['character_id' => $character->id, 'shop_item_id' => $item->id]);
+    }
 }

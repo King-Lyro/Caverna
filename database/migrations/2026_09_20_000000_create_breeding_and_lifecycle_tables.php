@@ -21,8 +21,8 @@ return new class extends Migration
             $table->id();
             $table->foreignId('female_character_id')->constrained('characters')->cascadeOnDelete();
             $table->foreignId('male_character_id')->constrained('characters')->cascadeOnDelete();
-            $table->timestamp('conceived_at');
-            $table->timestamp('due_at');
+            $table->dateTime('conceived_at');
+            $table->dateTime('due_at');
             $table->string('status')->default('pregnant');
             $table->timestamps();
             $table->index(['status', 'due_at']);
@@ -33,7 +33,7 @@ return new class extends Migration
             $table->foreignId('pregnancy_id')->constrained()->cascadeOnDelete();
             $table->unsignedTinyInteger('kit_count');
             $table->unsignedTinyInteger('surviving_count')->default(0);
-            $table->timestamp('born_at');
+            $table->dateTime('born_at');
             $table->timestamps();
         });
 

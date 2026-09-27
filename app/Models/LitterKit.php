@@ -7,11 +7,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class LitterKit extends Model
 {
-    protected $fillable = ['litter_id', 'status', 'sex', 'coat_notes', 'has_disability', 'owner_id'];
+    protected $fillable = ['litter_id', 'character_id', 'status', 'sex', 'energy', 'coat_notes', 'has_disability', 'owner_id'];
 
     protected function casts(): array
     {
-        return ['has_disability' => 'boolean'];
+        return ['energy' => 'integer', 'has_disability' => 'boolean'];
     }
 
     public function litter(): BelongsTo
@@ -22,5 +22,10 @@ class LitterKit extends Model
     public function owner(): BelongsTo
     {
         return $this->belongsTo(User::class, 'owner_id');
+    }
+
+    public function character(): BelongsTo
+    {
+        return $this->belongsTo(Character::class);
     }
 }

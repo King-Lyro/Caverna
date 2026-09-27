@@ -15,6 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withSchedule(function (Schedule $schedule): void {
         $schedule->command('cavernas:advance-lifecycle')->weeklyOn(0, '00:05');
+        $schedule->command('cavernas:process-pregnancies')->dailyAt('00:10');
     })
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([

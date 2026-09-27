@@ -2,6 +2,14 @@
 
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\ActivityController;
+use App\Http\Controllers\AdminAdoptionController;
+use App\Http\Controllers\AdminContentController;
+use App\Http\Controllers\AdminItemsController;
+use App\Http\Controllers\AdminLifecycleController;
+use App\Http\Controllers\AdminOwnershipController;
+use App\Http\Controllers\AdminPopulationController;
+use App\Http\Controllers\AdminUserController;
+use App\Http\Controllers\AdoptionController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BreedingController;
 use App\Http\Controllers\CharacterController;
@@ -29,6 +37,10 @@ Route::get('/characters', [CharacterController::class, 'index'])->name('characte
 Route::get('/characters/memorial', [MemorialController::class, 'index'])->name('characters.memorial');
 Route::get('/activity', [ActivityController::class, 'index'])->name('activity');
 Route::get('/shop', [ShopController::class, 'index'])->name('shop');
+Route::get('/adoption', [AdoptionController::class, 'index'])->name('adoption.index');
+Route::get('/adoption/create', [AdoptionController::class, 'create'])->middleware('auth')->name('adoption.create');
+Route::get('/adoption/{listing}', [AdoptionController::class, 'show'])->name('adoption.show');
+Route::get('/sales', [AdoptionController::class, 'sales'])->name('sales.index');
 Route::get('/breeding', [BreedingController::class, 'create'])->middleware('auth')->name('breeding.create');
 Route::get('/dashboard', DashboardController::class)->middleware('auth')->name('dashboard');
 Route::get('/crickets', [CricketLedgerController::class, 'index'])->middleware('auth')->name('crickets');
@@ -57,11 +69,24 @@ Route::middleware('auth')->prefix('forum')->name('forum.')->group(function () {
 
 Route::middleware('auth')->group(function () {
     Route::get('/characters/create', [CharacterController::class, 'create'])->name('characters.create');
+    Route::get('/sales/create', [AdoptionController::class, 'createSale'])->name('sales.create');
     Route::post('/characters', [CharacterController::class, 'store'])->middleware('throttle:10,1')->name('characters.store');
     Route::post('/breeding', [BreedingController::class, 'store'])->middleware('throttle:10,1')->name('breeding.store');
     Route::post('/pregnancies/{pregnancy}/birth', [BreedingController::class, 'birth'])->middleware('throttle:10,1')->name('breeding.birth');
     Route::post('/characters/{character}/mate-request', [CharacterController::class, 'requestMate'])->middleware('throttle:10,1')->name('characters.mate-request');
+    Route::post('/characters/{character}/mentor-request', [CharacterController::class, 'requestMentor'])->middleware('throttle:10,1')->name('characters.mentor-request');
+    Route::post('/adoption/{listing}/claim', [AdoptionController::class, 'claim'])->middleware('throttle:10,1')->name('adoption.claim');
+    Route::post('/adoption/{listing}/apply', [AdoptionController::class, 'apply'])->middleware('throttle:5,1')->name('adoption.apply');
+    Route::patch('/adoption/{listing}/withdraw', [AdoptionController::class, 'withdraw'])->name('adoption.withdraw');
+    Route::post('/sales', [AdoptionController::class, 'storeSale'])->name('sales.store');
+    Route::patch('/sales/{listing}/withdraw', [AdoptionController::class, 'withdrawSale'])->name('sales.withdraw');
+    Route::post('/sales/{listing}/purchase', [AdoptionController::class, 'purchaseSale'])->name('sales.purchase');
+    Route::post('/characters/{character}/transfer', [AdoptionController::class, 'requestTransfer'])->name('characters.transfer');
+    Route::patch('/character-transfers/{transfer}/accept', [AdoptionController::class, 'acceptTransfer'])->name('characters.transfer.accept');
+    Route::post('/adoption', [AdoptionController::class, 'store'])->middleware('throttle:10,1')->name('adoption.store');
+    Route::patch('/adoption/applications/{application}', [AdoptionController::class, 'review'])->name('adoption.review');
     Route::patch('/mate-requests/{mateRequest}/accept', [CharacterController::class, 'acceptMate'])->name('characters.mate-accept');
+    Route::patch('/character-relationships/{relationship}/accept', [CharacterController::class, 'acceptMentor'])->name('characters.mentor-accept');
     Route::get('/inventory', [ShopController::class, 'inventory'])->name('inventory');
     Route::post('/inventory/{inventory}/use', [ShopController::class, 'useItem'])->name('inventory.use');
     Route::post('/shop/{item}/purchase', [ShopController::class, 'purchase'])->middleware('throttle:20,1')->name('shop.purchase');
@@ -86,4 +111,21 @@ Route::middleware(['auth', 'staff'])->prefix('staff')->name('staff.')->group(fun
         Route::get('/characters/{character}/edit', [StaffCharacterController::class, 'edit'])->name('characters.edit');
         Route::patch('/characters/{character}', [StaffCharacterController::class, 'update'])->name('characters.update');
     });
+});
+
+Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/users', [AdminUserController::class, 'index'])->name('users.index');
+    Route::patch('/users/{user}', [AdminUserController::class, 'update'])->name('users.update');
+    Route::get('/content', [AdminContentController::class, 'index'])->name('content.index');
+    Route::get('/adoption', [AdminAdoptionController::class, 'index'])->name('adoption.index');
+    Route::get('/population', [AdminPopulationController::class, 'index'])->name('population.index');
+    Route::get('/items', [AdminItemsController::class, 'index'])->name('items.index');
+    Route::get('/lifecycle', [AdminLifecycleController::class, 'index'])->name('lifecycle.index');
+    Route::get('/ownership', [AdminOwnershipController::class, 'index'])->name('ownership.index');
+    Route::post('/content/categories', [AdminContentController::class, 'storeCategory'])->name('content.categories.store');
+    Route::patch('/content/categories/{category}', [AdminContentController::class, 'updateCategory'])->name('content.categories.update');
+    Route::post('/content/boards', [AdminContentController::class, 'storeBoard'])->name('content.boards.store');
+    Route::patch('/content/boards/{board}', [AdminContentController::class, 'updateBoard'])->name('content.boards.update');
+    Route::post('/content/modules', [AdminContentController::class, 'storeModule'])->name('content.modules.store');
+    Route::patch('/content/modules/{module}', [AdminContentController::class, 'updateModule'])->name('content.modules.update');
 });

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Character;
+use App\Support\CavernasRules;
 use Illuminate\Support\Carbon;
 
 class CharacterLifecycleService
@@ -10,18 +11,31 @@ class CharacterLifecycleService
     public function advanceWeek(Character $character, ?Carbon $now = null): Character
     {
         $now ??= now();
+        if ($character->is_frozen || $character->status === 'deceased') {
+            return $character->refresh();
+        }
         $character->age_moons = (float) $character->age_moons + 0.5;
+
+        if (! $character->role_locked) {
+            $character->role = $character->calculatedRole();
+        }
 
         $lastActivity = $character->last_ic_post_at;
         if (! $lastActivity || $lastActivity->lte($now->copy()->subWeek())) {
             $character->energy = max(0, $character->energy - 20);
         }
 
-        if ($character->status === 'inactive') {
+        if (CavernasRules::shouldDieOfOldAge($character)) {
+            $character->status = 'deceased';
+            $character->energy = 0;
+            $character->died_at = $now;
+            $character->archived_at = $now;
+        } elseif ($character->status === 'inactive') {
             $inactiveAt = $character->inactive_at ?: $character->updated_at;
             if ($inactiveAt && Carbon::parse($inactiveAt)->addWeeks(2)->lte($now)) {
                 $character->status = 'deceased';
                 $character->died_at = $now;
+                $character->archived_at = $now;
             }
         } elseif ($character->energy <= 0 && $character->status === 'active') {
             $character->status = 'inactive';
@@ -31,6 +45,7 @@ class CharacterLifecycleService
         if ($character->status === 'deceased' && ! $character->died_at) {
             $character->status = 'deceased';
             $character->died_at = $now;
+            $character->archived_at = $character->archived_at ?: $now;
         }
 
         $character->save();

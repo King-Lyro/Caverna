@@ -30,4 +30,19 @@
     @foreach ($pregnancies as $pregnancy)<article class="dashboard-row"><strong>{{ $pregnancy->female->name }} & {{ $pregnancy->male->name }}</strong><span>Due {{ $pregnancy->due_at->format('M j, Y') }}</span></article>@endforeach
 </section>
 @endif
+
+@if ($transferRequests->isNotEmpty())
+<section class="dashboard-section"><div class="section-heading"><div><p class="eyebrow">Character transfers</p><h2>Requests waiting for you.</h2></div></div>@foreach ($transferRequests as $transfer)<article class="dashboard-row"><strong>{{ $transfer->character->name }}</strong><span>From {{ $transfer->sender->name }}</span><form method="POST" action="{{ route('characters.transfer.accept', $transfer) }}">@csrf @method('PATCH')<button class="text-link" type="submit">Accept</button></form></article>@endforeach</section>
+@endif
+
+@if ($adoptionApplications->isNotEmpty())
+<section class="dashboard-section"><div class="section-heading"><div><p class="eyebrow">Adoption history</p><h2>Your applications.</h2></div><a class="text-link" href="{{ route('adoption.index') }}">Browse adoptables ↗</a></div>@foreach ($adoptionApplications as $application)<article class="dashboard-row"><a href="{{ route('adoption.show', $application->listing) }}"><strong>{{ $application->listing->title }}</strong></a><span>{{ ucfirst($application->status) }}</span></article>@endforeach</section>
+@endif
+
+@if ($transferHistory->isNotEmpty() || $saleHistory->isNotEmpty())
+<section class="dashboard-section"><div class="section-heading"><div><p class="eyebrow">Ownership history</p><h2>Recent movement.</h2></div></div>
+    @foreach ($transferHistory as $transfer)<article class="dashboard-row"><a href="{{ route('characters.show', $transfer->character) }}"><strong>{{ $transfer->character->name }}</strong></a><span>Transfer {{ $transfer->status === 'accepted' ? 'accepted' : 'closed' }} · {{ $transfer->updated_at->format('M j, Y') }}</span></article>@endforeach
+    @foreach ($saleHistory as $sale)<article class="dashboard-row"><a href="{{ route('characters.show', $sale->character) }}"><strong>{{ $sale->character->name }}</strong></a><span>{{ $sale->status === 'sold' ? 'Sold' : 'Sale withdrawn' }} · {{ $sale->updated_at->format('M j, Y') }}</span></article>@endforeach
+</section>
+@endif
 @endsection

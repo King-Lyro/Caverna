@@ -17,6 +17,12 @@ class BreedingService
         if ($female->sex !== 'female' || $male->sex !== 'male') {
             throw new RuntimeException('Breeding requires one female and one male character.');
         }
+        if ((float) $female->age_moons < 12 || (float) $male->age_moons < 12) {
+            throw new RuntimeException('Both characters must be at least 12 moons old to breed.');
+        }
+        if ($female->status !== 'active' || $male->status !== 'active' || $female->is_frozen || $male->is_frozen) {
+            throw new RuntimeException('Only active, unfrozen characters may breed.');
+        }
         if ($female->user_id === $male->user_id) {
             throw new RuntimeException('Members cannot breed their own characters.');
         }
@@ -31,15 +37,26 @@ class BreedingService
             $this->charge($female, $this->breedingCost($female));
             $this->charge($male, $this->breedingCost($male));
 
-            return Pregnancy::create([
+            $pregnancy = Pregnancy::create([
                 'female_character_id' => $female->id,
                 'male_character_id' => $male->id,
+                'previous_female_role' => $female->role_locked ? null : $female->role,
                 'mates' => $mates,
                 'conceived_at' => $now,
                 'due_at' => $now->copy()->addWeeks(4),
                 'status' => $mates ? 'pregnant' : 'pregnant',
             ]);
+            if (! $female->role_locked) {
+                $female->update(['role' => 'queen']);
+            }
+
+            return $pregnancy;
         });
+    }
+
+    public function breedingCostFor(Character $character): int
+    {
+        return $this->breedingCost($character);
     }
 
     public function giveBirth(Pregnancy $pregnancy, ?Carbon $now = null): Litter
@@ -73,14 +90,26 @@ class BreedingService
             $femaleKitCount = 0;
             foreach ($outcomes as $outcome) {
                 $ownerId = null;
+                $kitSex = random_int(0, 1) ? 'female' : 'male';
                 if ($outcome['status'] === 'surviving') {
                     $ownerId = $femaleKitCount < $femaleKitLimit ? $female->user_id : $male->user_id;
                     $femaleKitCount++;
                 }
-                $litter->kits()->create(['status' => $outcome['status'], 'sex' => random_int(0, 1) ? 'female' : 'male', 'coat_notes' => $this->inheritCoatNotes($female, $male), 'has_disability' => $outcome['has_disability'], 'owner_id' => $ownerId]);
+                $kit = $litter->kits()->create(['status' => $outcome['status'], 'sex' => $kitSex, 'coat_notes' => $this->inheritCoatNotes($female, $male), 'has_disability' => $outcome['has_disability'], 'owner_id' => $ownerId, 'energy' => $outcome['status'] === 'surviving' ? ($outcome['has_disability'] ? 25 : 70) : 0]);
+                if ($ownerId && $outcome['status'] === 'surviving') {
+                    $kitCharacter = Character::create(['user_id' => $ownerId, 'name' => 'Unnamed kit '.$kit->id, 'sex' => $kitSex, 'age_moons' => 0, 'allegiance' => $femaleKitCount <= $femaleKitLimit ? $female->allegiance : $male->allegiance, 'role' => 'kit', 'energy' => $kit->energy, 'status' => 'active', 'health_status' => $kit->has_disability ? 'low-health' : 'healthy', 'looks' => $kit->coat_notes, 'appearance' => 'A newborn kit awaiting a profile.', 'personality' => 'A newborn kit awaiting a story.', 'history' => 'Born in Cavernas.', 'adopted' => false]);
+                    $kit->update(['character_id' => $kitCharacter->id]);
+                    $kitCharacter->relationships()->createMany([
+                        ['related_character_id' => $female->id, 'type' => 'parent', 'status' => 'accepted', 'accepted_at' => $now],
+                        ['related_character_id' => $male->id, 'type' => 'parent', 'status' => 'accepted', 'accepted_at' => $now],
+                    ]);
+                }
             }
             $litter->update(['surviving_count' => $surviving]);
             $pregnancy->update(['status' => 'birthed']);
+            if (! $female->role_locked) {
+                $female->update(['role' => $pregnancy->previous_female_role ?: $female->calculatedRole()]);
+            }
 
             return $litter->load('kits');
         });

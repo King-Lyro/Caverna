@@ -7,6 +7,7 @@ use App\Models\Inventory;
 use App\Models\ShopItem;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Tests\TestCase;
 
 class CharacterCreationTest extends TestCase
@@ -18,6 +19,26 @@ class CharacterCreationTest extends TestCase
         $user = User::factory()->create(['status' => 'approved']);
 
         $this->actingAs($user)->get(route('characters.create'))->assertOk();
+    }
+
+    public function test_outsider_allegiances_only_appear_with_an_available_access_item(): void
+    {
+        $user = User::factory()->create(['status' => 'approved']);
+        $item = ShopItem::create(['name' => 'Beyond-the-hedge pass', 'slug' => 'beyond-the-hedge-pass-visibility', 'description' => 'Outsider access.', 'cost' => 500, 'effect' => 'Outsider access']);
+        $inventory = Inventory::create(['user_id' => $user->id, 'shop_item_id' => $item->id, 'quantity' => 0]);
+
+        $this->actingAs($user)->get(route('characters.create'))->assertOk()
+            ->assertSee('value="ThunderClan"', false)
+            ->assertDontSee('value="Kittypet"', false)
+            ->assertDontSee('value="Loner"', false)
+            ->assertDontSee('value="Rogue"', false);
+
+        $inventory->update(['quantity' => 1]);
+
+        $this->actingAs($user)->get(route('characters.create'))->assertOk()
+            ->assertSee('value="Kittypet"', false)
+            ->assertSee('value="Loner"', false)
+            ->assertSee('value="Rogue"', false);
     }
 
     public function test_fourth_non_adopted_character_requires_crickets(): void
@@ -101,6 +122,17 @@ class CharacterCreationTest extends TestCase
 
         $this->assertDatabaseHas('characters', ['user_id' => $user->id, 'allegiance' => 'Rogue']);
         $this->assertDatabaseHas('inventories', ['id' => $inventory->id, 'quantity' => 0]);
+    }
+
+    public function test_forum_avatar_can_be_uploaded_with_a_character(): void
+    {
+        $user = User::factory()->create(['status' => 'approved']);
+        $payload = $this->characterPayload();
+        $payload['forum_avatar'] = UploadedFile::fake()->image('avatar.png', 128, 128);
+
+        $this->actingAs($user)->post(route('characters.store'), $payload)->assertRedirect();
+
+        $this->assertDatabaseMissing('characters', ['user_id' => $user->id, 'forum_avatar_path' => null]);
     }
 
     private function characterPayload(): array

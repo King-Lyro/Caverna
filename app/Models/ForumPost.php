@@ -27,4 +27,9 @@ class ForumPost extends Model
     {
         return $this->belongsTo(User::class, 'user_id');
     }
+
+    public function character(): BelongsTo
+    {
+        return $this->belongsTo(Character::class);
+    }
 }

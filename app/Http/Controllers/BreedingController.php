@@ -18,7 +18,9 @@ class BreedingController extends Controller
     {
         $this->ensureApproved($request);
 
-        return view('breeding.create', ['characters' => Character::where('status', 'active')->with('user')->orderBy('name')->get()]);
+        $characters = Character::where('status', 'active')->with('user')->orderBy('name')->get();
+
+        return view('breeding.create', ['characters' => $characters, 'breedingCosts' => $characters->mapWithKeys(fn (Character $character) => [$character->id => app(BreedingService::class)->breedingCostFor($character)])]);
     }
 
     public function store(Request $request, BreedingService $breeding): RedirectResponse
