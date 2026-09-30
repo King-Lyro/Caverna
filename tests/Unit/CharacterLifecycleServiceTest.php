@@ -43,4 +43,42 @@ class CharacterLifecycleServiceTest extends TestCase
             $this->assertLessThanOrEqual(6, $service->litterSize(false, false));
         }
     }
+
+    public function test_mated_cross_allegiance_litters_can_exceed_six_kits(): void
+    {
+        $service = app(CharacterLifecycleService::class);
+        $sizes = [];
+        for ($attempt = 0; $attempt < 100; $attempt++) {
+            $sizes[] = $service->litterSize(true, false);
+        }
+
+        $this->assertGreaterThan(6, max($sizes));
+        $this->assertLessThanOrEqual(12, max($sizes));
+    }
+
+    public function test_cross_allegiance_survivors_have_low_health(): void
+    {
+        $service = app(CharacterLifecycleService::class);
+        $survivors = 0;
+        for ($attempt = 0; $attempt < 200; $attempt++) {
+            $outcome = $service->kitOutcome(true);
+            if ($outcome['status'] === 'surviving') {
+                $survivors++;
+                $this->assertTrue($outcome['low_health']);
+                $this->assertFalse($outcome['has_disability']);
+            }
+        }
+
+        $this->assertGreaterThan(0, $survivors);
+    }
+
+    public function test_outsider_roles_do_not_change_with_age(): void
+    {
+        $character = Character::create(['user_id' => User::factory()->create()->id, 'name' => 'Dawn', 'sex' => 'female', 'age_moons' => 129.5, 'allegiance' => 'outsider', 'role' => 'kittypet', 'looks' => 'Bright eyes.', 'appearance' => 'Appearance.', 'personality' => 'Personality.', 'history' => 'History.', 'energy' => 100, 'status' => 'active']);
+
+        $aged = app(CharacterLifecycleService::class)->advanceWeek($character);
+
+        $this->assertSame(130.0, (float) $aged->age_moons);
+        $this->assertSame('kittypet', $aged->role);
+    }
 }

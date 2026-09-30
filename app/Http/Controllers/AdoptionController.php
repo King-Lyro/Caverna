@@ -8,19 +8,27 @@ use App\Models\AuditLog;
 use App\Models\Character;
 use App\Models\CharacterSaleListing;
 use App\Models\CharacterTransfer;
+use App\Models\ContentPage;
 use App\Models\User;
 use App\Notifications\AdoptionNotification;
 use App\Notifications\CharacterTransferNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class AdoptionController extends Controller
 {
     public function index(): View
     {
-        return view('adoption.index', ['listings' => AdoptionListing::query()->where('status', 'available')->with(['character', 'owner'])->latest()->paginate(12)]);
+        $page = ContentPage::where('slug', 'adoption')->firstOrFail();
+
+        return view('adoption.index', [
+            'page' => $page,
+            'body' => Str::markdown($page->body, ['html_input' => 'strip', 'allow_unsafe_links' => false]),
+            'listings' => AdoptionListing::query()->where('status', 'available')->with(['character', 'owner'])->latest()->paginate(12),
+        ]);
     }
 
     public function sales(): View
@@ -81,15 +89,17 @@ class AdoptionController extends Controller
     public function requestTransfer(Character $character, Request $request): RedirectResponse
     {
         $this->ensureApproved($request);
-        $validated = $request->validate(['recipient_id' => ['required', 'exists:users,id']]);
+        $validated = $request->validate(['recipient_id' => ['nullable', 'integer', 'exists:users,id'], 'recipient_email' => ['nullable', 'email']]);
         abort_unless($character->user_id === $request->user()->id, 403);
-        abort_if($validated['recipient_id'] === $request->user()->id, 422, 'You cannot transfer a character to yourself.');
+        $recipient = $validated['recipient_id'] ?? null ? User::find($validated['recipient_id']) : User::where('email', $validated['recipient_email'] ?? null)->first();
+        abort_unless($recipient, 422, 'No member was found with that email.');
+        abort_if($recipient->id === $request->user()->id, 422, 'You cannot transfer a character to yourself.');
         abort_if($character->status !== 'active' || $character->is_frozen, 422, 'Only active, unfrozen characters can be transferred.');
 
-        CharacterTransfer::create(['character_id' => $character->id, 'from_user_id' => $request->user()->id, 'to_user_id' => $validated['recipient_id']]);
-        User::findOrFail($validated['recipient_id'])->notify(new CharacterTransferNotification($character, 'You have a transfer request for'));
+        CharacterTransfer::create(['character_id' => $character->id, 'from_user_id' => $request->user()->id, 'to_user_id' => $recipient->id]);
+        $recipient->notify(new CharacterTransferNotification($character, 'You have a transfer request for'));
 
-        return back()->with('status', 'Transfer request sent.');
+        return back()->with('status', 'Transfer request sent to '.$recipient->name.'.');
     }
 
     public function acceptTransfer(CharacterTransfer $transfer, Request $request): RedirectResponse

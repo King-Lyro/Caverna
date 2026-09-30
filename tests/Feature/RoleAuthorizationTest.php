@@ -14,6 +14,7 @@ class RoleAuthorizationTest extends TestCase
     {
         $user = User::factory()->create(['role' => 'registered', 'status' => 'approved']);
 
+        $this->actingAs($user)->get(route('staff.index'))->assertForbidden();
         $response = $this->actingAs($user)->get(route('staff.applications'));
 
         $response->assertForbidden();
@@ -23,6 +24,7 @@ class RoleAuthorizationTest extends TestCase
     {
         $moderator = User::factory()->create(['role' => 'moderator', 'status' => 'approved']);
 
+        $this->actingAs($moderator)->get(route('staff.index'))->assertOk()->assertSee('Staff CP')->assertDontSee('Users & permissions');
         $this->actingAs($moderator)->get(route('staff.applications'))->assertOk();
         $this->actingAs($moderator)->get(route('staff.characters'))->assertForbidden();
     }
@@ -31,6 +33,7 @@ class RoleAuthorizationTest extends TestCase
     {
         $admin = User::factory()->create(['role' => 'admin', 'status' => 'approved']);
 
+        $this->actingAs($admin)->get(route('staff.index'))->assertOk()->assertSeeText('Users & permissions', false)->assertSee('Forum boards');
         $this->actingAs($admin)->get(route('staff.characters'))->assertOk();
     }
 }

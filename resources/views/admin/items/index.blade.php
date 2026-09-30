@@ -1,4 +1,4 @@
-@extends('layouts.cavernas')
+@extends('layouts.staff')
 
 @section('content')
 <section class="page-heading page-heading-theme compact-heading"><p class="eyebrow">Administrator panel</p><h1>Applied<br><em>item audit.</em></h1><p>Review one-use shop enhancements currently attached to character profiles.</p></section>

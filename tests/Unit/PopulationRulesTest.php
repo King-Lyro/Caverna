@@ -32,4 +32,16 @@ class PopulationRulesTest extends TestCase
 
         $this->assertFalse(CavernasRules::clanCreationAllowed('ThunderClan'));
     }
+
+    public function test_population_admin_breaks_out_sex_roles_and_outsiders(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'status' => 'approved']);
+        Character::create(['user_id' => $admin->id, 'name' => 'Ash', 'sex' => 'female', 'age_moons' => 12, 'allegiance' => 'ThunderClan', 'role' => 'warrior', 'looks' => 'A coat.', 'appearance' => 'Appearance.', 'personality' => 'Personality.', 'history' => 'History.', 'status' => 'active']);
+        Character::create(['user_id' => $admin->id, 'name' => 'Rain', 'sex' => 'male', 'age_moons' => 6, 'allegiance' => 'ThunderClan', 'role' => 'apprentice', 'looks' => 'A coat.', 'appearance' => 'Appearance.', 'personality' => 'Personality.', 'history' => 'History.', 'status' => 'active']);
+        Character::create(['user_id' => $admin->id, 'name' => 'Pine', 'sex' => 'male', 'age_moons' => 12, 'allegiance' => 'outsider', 'role' => 'rogue', 'looks' => 'A coat.', 'appearance' => 'Appearance.', 'personality' => 'Personality.', 'history' => 'History.', 'status' => 'active']);
+
+        $this->actingAs($admin)->get(route('admin.population.index'))->assertOk()
+            ->assertSee('ThunderClan')->assertSee('She-cats')->assertSee('Toms')
+            ->assertSee('Warriors')->assertSee('Apprentices')->assertSee('Outsiders');
+    }
 }

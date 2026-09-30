@@ -72,6 +72,23 @@ class Character extends Model
 
     public function calculatedRole(): string
     {
+        if ($this->allegiance === 'outsider' && in_array($this->role, ['kittypet', 'loner', 'rogue'], true)) {
+            return $this->role;
+        }
+
         return CavernasRules::roleForAge((float) $this->age_moons, $this->allegiance);
+    }
+
+    public function isNursingQueen(?\Illuminate\Support\Carbon $now = null): bool
+    {
+        if ($this->role !== 'queen') {
+            return false;
+        }
+        if (Pregnancy::where('female_character_id', $this->id)->where('status', 'pregnant')->exists()) {
+            return true;
+        }
+        $litter = Pregnancy::where('female_character_id', $this->id)->where('status', 'birthed')->with('litter')->latest('due_at')->first()?->litter;
+
+        return $litter && $litter->born_at->copy()->addWeeks(12)->gt($now ?? now());
     }
 }

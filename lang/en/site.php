@@ -2,7 +2,7 @@
 
 return [
     'name' => 'Cavernas',
-    'tagline' => '',
+    'tagline' => 'Remnants of the clans',
     'season' => 'Season I · Season title goes here',
     'nav' => [
         'home' => 'Home',

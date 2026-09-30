@@ -17,7 +17,7 @@ class MateRequestTest extends TestCase
         $user = User::factory()->create(['status' => 'approved']);
         $character = $this->character($user, 'Ember');
 
-        $this->actingAs($user)->post(route('characters.mate-request', $character), ['from_character_id' => $character->id])->assertStatus(422);
+        $this->actingAs($user)->post(route('characters.mate-request', $character), ['from_character_id' => $character->id])->assertRedirect()->assertSessionHas('error', 'A character cannot request its own mate.');
     }
 
     public function test_mate_request_can_be_accepted_by_the_recipient_owner(): void
@@ -44,7 +44,23 @@ class MateRequestTest extends TestCase
         $from->update(['age_moons' => 11.5]);
         $to = $this->character($recipient, 'Rain');
 
-        $this->actingAs($sender)->post(route('characters.mate-request', $to), ['from_character_id' => $from->id])->assertStatus(422);
+        $this->actingAs($sender)->post(route('characters.mate-request', $to), ['from_character_id' => $from->id])->assertRedirect()->assertSessionHas('error', 'Both characters must be at least 12 moons old to take a mate.');
+    }
+
+    public function test_apprentices_and_underage_recipients_cannot_be_mated(): void
+    {
+        $sender = User::factory()->create(['status' => 'approved']);
+        $recipient = User::factory()->create(['status' => 'approved']);
+        $from = $this->character($sender, 'Ember');
+        $to = $this->character($recipient, 'Rain');
+
+        $from->update(['age_moons' => 11, 'role' => 'apprentice']);
+        $this->actingAs($sender)->post(route('characters.mate-request', $to), ['from_character_id' => $from->id])->assertSessionHas('error');
+
+        $from->update(['age_moons' => 12, 'role' => 'warrior']);
+        $to->update(['age_moons' => 11, 'role' => 'apprentice']);
+        $this->actingAs($sender)->post(route('characters.mate-request', $to), ['from_character_id' => $from->id])->assertSessionHas('error');
+        $this->assertDatabaseCount('mate_requests', 0);
     }
 
     private function character(User $user, string $name): Character

@@ -12,8 +12,12 @@ class AdminPopulationController extends Controller
     {
         $clans = ['ThunderClan', 'RiverClan', 'ShadowClan', 'WindClan'];
         $counts = array_replace(array_fill_keys($clans, 0), CavernasRules::clanPopulationCounts());
-        $roles = Character::query()->whereIn('allegiance', $clans)->whereIn('role', ['warrior', 'apprentice'])->whereIn('status', ['active', 'inactive'])->selectRaw('allegiance, role, count(*) as population')->groupBy('allegiance', 'role')->get()->groupBy('allegiance');
+        $population = Character::query()->whereIn('allegiance', [...$clans, 'outsider', 'Kittypet', 'Loner', 'Rogue'])->whereIn('status', ['active', 'inactive'])
+            ->selectRaw('allegiance, sex, role, count(*) as population')->groupBy('allegiance', 'sex', 'role')->get();
+        $clanStats = $population->whereIn('allegiance', $clans)->whereIn('role', ['warrior', 'apprentice'])->groupBy('allegiance');
+        $outsiderStats = $population->whereIn('allegiance', ['outsider', 'Kittypet', 'Loner', 'Rogue']);
+        $creationAllowed = collect($clans)->mapWithKeys(fn (string $clan) => [$clan => CavernasRules::clanCreationAllowed($clan)]);
 
-        return view('admin.population.index', ['clans' => $clans, 'counts' => $counts, 'roles' => $roles, 'lowest' => min($counts)]);
+        return view('admin.population.index', compact('clans', 'counts', 'clanStats', 'outsiderStats', 'creationAllowed') + ['lowest' => min($counts)]);
     }
 }

@@ -1,4 +1,4 @@
-@extends('layouts.cavernas')
+@extends('layouts.staff')
 
 @section('content')
 <section class="page-heading page-heading-theme compact-heading"><p class="eyebrow">Administrator panel</p><h1>Adoption<br><em>oversight.</em></h1><p>Review owner listings, monitor availability, and oversee pending auditions.</p></section>
@@ -9,7 +9,7 @@
 @empty<p class="form-intro">No adoption applications are waiting.</p>@endforelse
 {{ $applications->links() }}
 </section>
-<section class="admin-management-card admin-adoption-listings"><div class="section-heading"><div><p class="eyebrow">All listings</p><h2>Published adoptables.</h2></div><a class="text-link" href="{{ route('adoption.index') }}">View public page ↗</a></div>
+<section class="admin-management-card admin-adoption-listings"><div class="section-heading"><div><p class="eyebrow">All listings</p><h2>Published adoptables.</h2></div><div><a class="text-link" href="{{ route('admin.adoption.content.edit') }}">Edit page content ↗</a> <a class="text-link" href="{{ route('adoption.index') }}">View public page ↗</a></div></div>
 @forelse ($listings as $listing)<div class="admin-adoption-listing"><div><strong>{{ $listing->title }}</strong><span>{{ $listing->character?->name ?: 'No character' }} · Owner: {{ $listing->owner?->name ?: 'Unknown' }}</span></div><div><span class="adoption-status">{{ ucfirst($listing->status) }}</span><small>{{ ucfirst($listing->claim_policy) }}</small></div></div>@empty<p class="form-intro">No adoption listings have been published.</p>@endforelse
 {{ $listings->links() }}
 </section>

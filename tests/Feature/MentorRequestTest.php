@@ -34,8 +34,36 @@ class MentorRequestTest extends TestCase
         $apprentice = $this->character($apprenticeOwner, 'Ash', 'apprentice');
         $kit = $this->character($mentorOwner, 'Kit', 'kit');
 
-        $this->actingAs($apprenticeOwner)->post(route('characters.mentor-request', $kit), ['apprentice_character_id' => $apprentice->id])->assertStatus(422);
+        $this->actingAs($apprenticeOwner)->post(route('characters.mentor-request', $kit), ['apprentice_character_id' => $apprentice->id])->assertRedirect()->assertSessionHas('error');
         $this->assertDatabaseCount('character_relationships', 0);
+    }
+
+    public function test_medicine_cats_cannot_be_requested_as_mentors_by_members(): void
+    {
+        $apprenticeOwner = User::factory()->create(['status' => 'approved']);
+        $medicineCatOwner = User::factory()->create(['status' => 'approved']);
+        $apprentice = $this->character($apprenticeOwner, 'Ash', 'apprentice');
+        $medicineCat = $this->character($medicineCatOwner, 'Willow', 'medicine_cat');
+
+        $this->actingAs($apprenticeOwner)->post(route('characters.mentor-request', $medicineCat), ['apprentice_character_id' => $apprentice->id])->assertRedirect()->assertSessionHas('error');
+        $this->assertDatabaseCount('character_relationships', 0);
+    }
+
+    public function test_deceased_apprentice_cannot_request_and_frozen_mentor_cannot_accept(): void
+    {
+        $apprenticeOwner = User::factory()->create(['status' => 'approved']);
+        $mentorOwner = User::factory()->create(['status' => 'approved']);
+        $apprentice = $this->character($apprenticeOwner, 'Ash', 'apprentice');
+        $mentor = $this->character($mentorOwner, 'Stone', 'warrior');
+        $apprentice->update(['status' => 'deceased']);
+
+        $this->actingAs($apprenticeOwner)->post(route('characters.mentor-request', $mentor), ['apprentice_character_id' => $apprentice->id])->assertSessionHas('error');
+        $this->assertDatabaseCount('character_relationships', 0);
+
+        $apprentice->update(['status' => 'active']);
+        $this->actingAs($apprenticeOwner)->post(route('characters.mentor-request', $mentor), ['apprentice_character_id' => $apprentice->id])->assertRedirect();
+        $mentor->update(['is_frozen' => true]);
+        $this->actingAs($mentorOwner)->patch(route('characters.mentor-accept', CharacterRelationship::firstOrFail()))->assertSessionHas('error');
     }
 
     private function character(User $user, string $name, string $role): Character

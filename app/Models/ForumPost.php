@@ -11,16 +11,16 @@ class ForumPost extends Model
 {
     use HasFactory, SoftDeletes;
 
-    protected $fillable = ['forum_thread_id', 'user_id', 'character_id', 'body', 'is_ic'];
+    protected $fillable = ['forum_thread_id', 'user_id', 'character_id', 'body', 'is_ic', 'edited_at'];
 
     protected function casts(): array
     {
-        return ['is_ic' => 'boolean'];
+        return ['is_ic' => 'boolean', 'edited_at' => 'datetime'];
     }
 
     public function thread(): BelongsTo
     {
-        return $this->belongsTo(ForumThread::class);
+        return $this->belongsTo(ForumThread::class, 'forum_thread_id');
     }
 
     public function author(): BelongsTo

@@ -7,14 +7,75 @@ use App\Models\AdoptionListing;
 use App\Models\Character;
 use App\Models\CharacterSaleListing;
 use App\Models\CharacterTransfer;
+use App\Models\ContentPage;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class AdoptionTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_adoption_index_separates_editorial_content_from_listings(): void
+    {
+        $this->get(route('adoption.index'))->assertOk()
+            ->assertSee('class="adoption-intro guide-article"', false)
+            ->assertSee('class="adoption-listings"', false)
+            ->assertSee('Adoption<br />', false)
+            ->assertSee('Available characters');
+    }
+
+    public function test_adoption_index_preserves_listing_images_types_and_descriptions(): void
+    {
+        $owner = User::factory()->create(['status' => 'approved']);
+        $character = $this->character($owner, 'Fern');
+        $listing = AdoptionListing::create([
+            'character_id' => $character->id, 'title' => 'Fern needs a home',
+            'description' => 'A gentle character looking for a new story.',
+            'images' => ['https://example.com/fern.jpg'], 'claim_policy' => 'application', 'status' => 'available',
+        ]);
+
+        $this->get(route('adoption.index'))->assertOk()
+            ->assertSee('Fern needs a home')->assertSee('A gentle character looking for a new story.')
+            ->assertSee('Application')->assertSee('https://example.com/fern.jpg')
+            ->assertSee(route('adoption.show', $listing));
+    }
+
+    public function test_only_admins_can_edit_adoption_page_content(): void
+    {
+        $member = User::factory()->create(['role' => 'registered', 'status' => 'approved']);
+        $this->actingAs($member)->get(route('admin.adoption.content.edit'))->assertForbidden();
+        $this->actingAs($member)->patch(route('admin.adoption.content.update'), ['title' => 'Changed'])->assertForbidden();
+
+        $admin = User::factory()->create(['role' => 'admin', 'status' => 'approved']);
+        $this->actingAs($admin)->get(route('admin.adoption.content.edit'))->assertOk()->assertSee('data-article-editor', false);
+        $this->actingAs($admin)->patch(route('admin.adoption.content.update'), [
+            'eyebrow' => 'New beginnings', 'title' => "Find your\nnext story.",
+            'intro' => 'Meet characters ready for a new chapter.',
+            'body' => "## Before you apply\n\n| Path | Next step |\n| --- | --- |\n| Instant | Claim now |\n\n![Fern](/storage/adoption/fern.png)\n\n<script>alert('unsafe')</script>",
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('content_pages', ['slug' => 'adoption', 'eyebrow' => 'New beginnings']);
+        $this->get(route('adoption.index'))->assertOk()->assertSee('New beginnings')
+            ->assertSee('<h2>Before you apply</h2>', false)->assertSee('<table>', false)
+            ->assertSee('src="/storage/adoption/fern.png"', false)->assertDontSee('<script>', false);
+    }
+
+    public function test_only_admins_can_upload_safe_adoption_page_images(): void
+    {
+        Storage::fake('public');
+        $member = User::factory()->create(['role' => 'registered', 'status' => 'approved']);
+        $this->actingAs($member)->post(route('admin.adoption.content.images.store'), ['image' => UploadedFile::fake()->image('fern.png')])->assertForbidden();
+
+        $admin = User::factory()->create(['role' => 'admin', 'status' => 'approved']);
+        $response = $this->actingAs($admin)->post(route('admin.adoption.content.images.store'), ['image' => UploadedFile::fake()->image('fern.png')]);
+        $response->assertOk()->assertJsonStructure(['url']);
+        Storage::disk('public')->assertExists('adoption/'.basename($response->json('url')));
+        $this->actingAs($admin)->post(route('admin.adoption.content.images.store'), ['image' => UploadedFile::fake()->create('unsafe.svg', 1, 'image/svg+xml')])->assertSessionHasErrors('image');
+    }
 
     public function test_an_approved_member_can_claim_an_instant_adoption_listing(): void
     {
@@ -104,6 +165,20 @@ class AdoptionTest extends TestCase
         $this->assertDatabaseHas('characters', ['id' => $character->id, 'user_id' => $buyer->id, 'is_frozen' => 0]);
         $this->assertDatabaseHas('character_sale_listings', ['id' => $listing->id, 'status' => 'sold', 'buyer_id' => $buyer->id]);
         $this->assertDatabaseHas('cricket_ledger', ['user_id' => $buyer->id, 'amount' => -250, 'type' => 'character_purchase']);
+    }
+
+    public function test_sales_index_keeps_listing_actions_in_an_adoption_style_panel(): void
+    {
+        $owner = User::factory()->create(['status' => 'approved']);
+        $character = $this->character($owner, 'Fern');
+        $listing = CharacterSaleListing::create(['character_id' => $character->id, 'owner_id' => $owner->id, 'price' => 250, 'status' => 'available']);
+
+        $this->get(route('sales.index'))->assertOk()
+            ->assertSee('class="sales-index-page"', false)
+            ->assertSee('class="sales-intro guide-article"', false)
+            ->assertSee('class="sales-listings adoption-listings"', false)
+            ->assertSee('Fern')->assertSee('250')->assertSee('Log in to purchase');
+        $this->actingAs($owner)->get(route('sales.index'))->assertOk()->assertSee(route('sales.withdraw', $listing));
     }
 
     public function test_owner_can_gift_a_character_to_another_member(): void

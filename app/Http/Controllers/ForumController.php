@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Character;
 use App\Models\ForumBoard;
 use App\Models\ForumCategory;
+use App\Models\ForumPost;
 use App\Models\ForumThread;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -37,7 +38,8 @@ class ForumController extends Controller
         return view('forum.thread', [
             'thread' => $thread->load(['board.category', 'author']),
             'posts' => $thread->posts()->with(['author', 'character'])->oldest()->paginate(20),
-            'characters' => auth()->user() ? Character::where('user_id', auth()->id())->where('status', 'active')->orderBy('name')->get() : collect(),
+            'characters' => auth()->user() ? Character::where('user_id', auth()->id())->whereIn('status', ['active', 'inactive'])->orderBy('name')->get() : collect(),
+            'boards' => auth()->user()?->isStaff() ? ForumBoard::with('category')->orderBy('name')->get() : collect(),
         ]);
     }
 
@@ -47,7 +49,7 @@ class ForumController extends Controller
             return redirect()->route('login');
         }
 
-        return view('forum.create-thread', ['board' => $board, 'characters' => Character::where('user_id', $request->user()->id)->where('status', 'active')->orderBy('name')->get()]);
+        return view('forum.create-thread', ['board' => $board, 'characters' => Character::where('user_id', $request->user()->id)->whereIn('status', ['active', 'inactive'])->orderBy('name')->get()]);
     }
 
     public function storeThread(ForumBoard $board, Request $request): RedirectResponse
@@ -55,7 +57,7 @@ class ForumController extends Controller
         $this->ensureApproved($request);
         $validated = $request->validate([
             'title' => ['required', 'string', 'min:3', 'max:160'],
-            'body' => [$board->is_ic ? 'required' : 'nullable', 'string', $board->is_ic ? 'min:70' : 'min:1'],
+            'body' => $this->postBodyRules($board->is_ic),
             'character_id' => [$board->is_ic ? 'required' : 'nullable', 'integer', 'exists:characters,id'],
         ]);
         $character = $board->is_ic ? $this->eligibleCharacter($request, $validated['character_id'], $board->slug) : null;
@@ -86,7 +88,7 @@ class ForumController extends Controller
         $this->ensureApproved($request);
         abort_if($thread->is_locked, 403, 'This thread is locked.');
         $validated = $request->validate([
-            'body' => [$thread->board->is_ic ? 'required' : 'nullable', 'string', $thread->board->is_ic ? 'min:70' : 'min:1'],
+            'body' => $this->postBodyRules($thread->board->is_ic),
             'character_id' => [$thread->board->is_ic ? 'required' : 'nullable', 'integer', 'exists:characters,id'],
         ]);
         $character = $thread->board->is_ic ? $this->eligibleCharacter($request, $validated['character_id'], $thread->board->slug) : null;
@@ -105,9 +107,32 @@ class ForumController extends Controller
         return back()->with('status', 'Your reply has been added to the story.');
     }
 
+    public function updatePost(ForumPost $post, Request $request): RedirectResponse
+    {
+        $this->ensureApproved($request);
+        abort_unless($post->user_id === $request->user()->id || $request->user()->isStaff(), 403);
+        $validated = $request->validate(['body' => $this->postBodyRules($post->is_ic)]);
+        $post->update(['body' => $validated['body'], 'edited_at' => now()]);
+
+        return back()->with('status', 'Post updated.');
+    }
+
     private function isApproved(Request $request): bool
     {
         return $request->user()?->isStaff() || $request->user()?->status === 'approved';
+    }
+
+    private function postBodyRules(bool $isIc): array
+    {
+        if (! $isIc) {
+            return ['nullable', 'string', 'min:1'];
+        }
+
+        return ['required', 'string', function (string $attribute, mixed $value, $fail): void {
+            if (str_word_count((string) $value) < 70) {
+                $fail('In-character posts must be at least 70 words.');
+            }
+        }];
     }
 
     private function ensureApproved(Request $request): void
@@ -136,10 +161,11 @@ class ForumController extends Controller
     private function eligibleCharacter(Request $request, int $characterId, string $boardSlug): Character
     {
         $character = Character::query()->whereKey($characterId)->where('user_id', $request->user()->id)->firstOrFail();
-        abort_if($character->status !== 'active', 422, 'Only active characters may post.');
         $home = str_replace('-territory', '', $boardSlug);
         $allegiance = strtolower(str_replace('clan', '', $character->allegiance));
         $isHome = str_contains($home, $allegiance);
+        abort_unless($character->status === 'active' || ($character->status === 'inactive' && $isHome), 422, 'Only living characters may post, and inactive characters must post at home.');
+        abort_if($character->is_frozen, 422, 'Frozen characters cannot post.');
         abort_if($character->energy <= 0 && ! $isHome, 422, 'This character cannot enter enemy territory with zero energy.');
 
         return $character;
@@ -153,6 +179,7 @@ class ForumController extends Controller
         $home = str_replace('-territory', '', $boardSlug);
         $allegiance = strtolower(str_replace('clan', '', $character->allegiance));
         $isHome = str_contains($home, $allegiance);
-        $character->forceFill(['energy' => max(0, min(100, $character->energy + ($isHome ? 20 : -10))), 'last_ic_post_at' => now(), 'status' => 'active', 'inactive_at' => null])->save();
+        $energy = max(0, min(100, $character->energy + ($isHome ? 20 : -10)));
+        $character->forceFill(['energy' => $energy, 'last_ic_post_at' => now(), 'status' => $energy > 0 ? 'active' : 'inactive', 'inactive_at' => $energy > 0 ? null : now()])->save();
     }
 }

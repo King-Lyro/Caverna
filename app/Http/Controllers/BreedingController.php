@@ -9,6 +9,7 @@ use App\Models\Pregnancy;
 use App\Services\BreedingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 use RuntimeException;
 
@@ -29,14 +30,13 @@ class BreedingController extends Controller
         $validated = $request->validate([
             'female_character_id' => ['required', 'integer', 'exists:characters,id'],
             'male_character_id' => ['required', 'integer', 'exists:characters,id'],
-            'mates' => ['nullable', 'boolean'],
         ]);
         $female = Character::findOrFail($validated['female_character_id']);
         $male = Character::findOrFail($validated['male_character_id']);
         abort_unless($female->user_id === $request->user()->id || $male->user_id === $request->user()->id, 403);
 
         try {
-            $pregnancy = $breeding->beginPregnancy($female, $male, (bool) ($validated['mates'] ?? false));
+            $pregnancy = $breeding->beginPregnancy($female, $male, false, null, $request->user()->id);
         } catch (RuntimeException $exception) {
             return back()->withErrors(['breeding' => $exception->getMessage()])->withInput();
         }
@@ -71,6 +71,23 @@ class BreedingController extends Controller
         $kit->update(['status' => $validated['status'], 'has_disability' => (bool) ($validated['has_disability'] ?? false)]);
 
         return back()->with('status', 'Kit record updated.');
+    }
+
+    public function bulkUpdateKits(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()->isStaff(), 403);
+        $validated = $request->validate([
+            'kits' => ['required', 'array'],
+            'kits.*.status' => ['required', 'in:surviving,deceased'],
+            'kits.*.has_disability' => ['required', 'boolean'],
+        ]);
+        DB::transaction(function () use ($validated): void {
+            foreach ($validated['kits'] as $id => $fields) {
+                LitterKit::findOrFail($id)->update($fields);
+            }
+        });
+
+        return back()->with('status', 'Litter records updated.');
     }
 
     private function ensureApproved(Request $request): void

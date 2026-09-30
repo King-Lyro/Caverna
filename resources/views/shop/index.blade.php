@@ -16,6 +16,7 @@
 		@forelse ($items as $item)
 			<article class="shop-card">
 				<div class="shop-card-body">
+					@if ($item->iconUrl())<img class="shop-card-icon" src="{{ $item->iconUrl() }}" alt="">@endif
 					<span class="shop-card-effect">{{ $item->effect ?? __('site.shop.buy') }}</span>
 					<h3>{{ $item->name }}</h3>
 					<p>{{ $item->description }}</p>

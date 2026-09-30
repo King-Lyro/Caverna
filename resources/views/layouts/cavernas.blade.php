@@ -58,21 +58,7 @@
             <span class="nav-spacer"></span>
             @auth
                 @if (auth()->user()->isStaff())
-                    <details class="nav-menu nav-menu-end">
-                        <summary @class(['is-active' => request()->routeIs('staff.*', 'admin.*')])>{{ __('site.nav.staff') }}</summary>
-                        <div class="nav-menu-panel">
-                            <a @class(['is-active' => request()->routeIs('staff.*')]) href="{{ route('staff.applications') }}">{{ __('site.nav.staff') }}</a>
-                            @if (auth()->user()->isAdmin())
-                                <a @class(['is-active' => request()->routeIs('admin.users.*')]) href="{{ route('admin.users.index') }}">Admin</a>
-                                <a @class(['is-active' => request()->routeIs('admin.content.*')]) href="{{ route('admin.content.index') }}">Content</a>
-                                <a @class(['is-active' => request()->routeIs('admin.adoption.*')]) href="{{ route('admin.adoption.index') }}">Adoption admin</a>
-                                <a @class(['is-active' => request()->routeIs('admin.population.*')]) href="{{ route('admin.population.index') }}">Population</a>
-                                <a @class(['is-active' => request()->routeIs('admin.items.*')]) href="{{ route('admin.items.index') }}">Item audit</a>
-                                <a @class(['is-active' => request()->routeIs('admin.lifecycle.*')]) href="{{ route('admin.lifecycle.index') }}">Lifecycle</a>
-                                <a @class(['is-active' => request()->routeIs('admin.ownership.*')]) href="{{ route('admin.ownership.index') }}">Ownership</a>
-                            @endif
-                        </div>
-                    </details>
+                    <a @class(['staff-cp-link', 'is-active' => request()->routeIs('staff.*', 'admin.*')]) href="{{ route('staff.index') }}">Staff CP</a>
                 @endif
                 <details class="nav-menu nav-menu-end nav-account">
                     <summary @class(['is-active' => request()->routeIs('dashboard', 'account.*', 'notifications*')])><span class="nav-user-name">{{ auth()->user()->name }}</span>@if (auth()->user()->unreadNotifications->isNotEmpty())<sup>{{ auth()->user()->unreadNotifications->count() }}</sup>@endif</summary>
@@ -108,17 +94,32 @@
                     <a class="text-link" href="{{ route('content.page', 'guide') }}">{{ __('site.shell.read_guide') }} <span aria-hidden="true">↗</span></a>
                 </section>
                 <section class="sidebar-card sidebar-card-quiet">
-                    <p class="eyebrow">{{ __('site.shell.four_paths') }}</p>
+                    <p class="eyebrow"><a href="{{ route('content.page', 'clans') }}">{{ __('site.shell.four_paths') }}</a></p>
                     <ul class="clan-list">
-                        <li><span class="clan-dot thunder"></span>ThunderClan</li>
-                        <li><span class="clan-dot river"></span>RiverClan</li>
-                        <li><span class="clan-dot shadow"></span>ShadowClan</li>
-                        <li><span class="clan-dot wind"></span>WindClan</li>
+                        @foreach (($worldPages ?? collect())->get('clans', collect()) as $clan)
+                            <li><span class="clan-dot {{ $clan->slug }}" aria-hidden="true"></span><a href="{{ route('world.show', ['kind' => 'clans', 'slug' => $clan->slug]) }}" @if (request()->is('clans/'.$clan->slug)) aria-current="page" @endif>{{ $clan->name }}</a></li>
+                        @endforeach
                     </ul>
+                    @if (($worldPages ?? collect())->get('outsiders', collect())->isNotEmpty())
+                        <div class="sidebar-world-group">
+                            <p class="eyebrow"><a href="{{ route('content.page', 'outsiders') }}">{{ __('site.nav.outsiders') }}</a></p>
+                            <ul class="clan-list">
+                                @foreach ($worldPages->get('outsiders') as $outsider)
+                                    <li><span class="clan-dot outsider" aria-hidden="true"></span><a href="{{ route('world.show', ['kind' => 'outsiders', 'slug' => $outsider->slug]) }}" @if (request()->is('outsiders/'.$outsider->slug)) aria-current="page" @endif>{{ $outsider->name }}</a></li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
                 </section>
             </aside>
 
             <main class="main-content">
+                @if (isset($pageError) || session('error') || (isset($errors) && $errors->any()))
+                    <div class="page-error" role="alert">
+                        <strong>Unable to complete your request.</strong>
+                        <p>{{ $pageError ?? session('error') ?? (isset($errors) ? $errors->first() : '') }}</p>
+                    </div>
+                @endif
                 @yield('content')
             </main>
 
@@ -135,9 +136,11 @@
                 <section class="sidebar-card">
                     <div class="card-heading"><span class="status-dot"></span><span>{{ __('site.shell.at_glance') }}</span></div>
                     <dl class="stats-list">
-                        <div><dt>Active stories</dt><dd>—</dd></div>
-                        <div><dt>{{ __('site.shell.clans_awake_label') }}</dt><dd>4</dd></div>
-                        <div><dt>{{ __('site.shell.new_crickets_label') }}</dt><dd>10</dd></div>
+                        <div><dt>Open stories</dt><dd>{{ number_format($atGlance['openStories']) }}</dd></div>
+                        <div><dt>Living characters</dt><dd>{{ number_format($atGlance['livingCharacters']) }}</dd></div>
+                        <div><dt>Clan population</dt><dd>{{ number_format($atGlance['clanPopulation']) }}</dd></div>
+                        <div><dt>Outsiders</dt><dd>{{ number_format($atGlance['outsiders']) }}</dd></div>
+                        <div><dt>Lowest Clan</dt><dd>{{ $atGlance['lowestClan'] }} · {{ $atGlance['lowestCount'] }}</dd></div>
                     </dl>
                 </section>
             </aside>

@@ -4,7 +4,6 @@ namespace Database\Seeders;
 
 use App\Models\ForumCategory;
 use App\Models\ShopItem;
-use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -17,10 +16,7 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        $this->call(TestAccountsSeeder::class);
 
         $world = ForumCategory::create([
             'name' => 'The world',
@@ -33,17 +29,7 @@ class DatabaseSeeder extends Seeder
             ['name' => 'Out of character', 'slug' => 'out-of-character', 'description' => 'Introductions, questions, and community conversation.', 'sort_order' => 3],
         ]);
 
-        $story = ForumCategory::create([
-            'name' => 'The living map',
-            'description' => 'Write the moments that change the territory.',
-            'sort_order' => 2,
-        ]);
-        $story->boards()->createMany([
-            ['name' => 'ThunderClan territory', 'slug' => 'thunderclan-territory', 'description' => 'Open role-play in the land of ThunderClan.', 'is_ic' => true, 'sort_order' => 1],
-            ['name' => 'RiverClan territory', 'slug' => 'riverclan-territory', 'description' => 'Open role-play along the river and its banks.', 'is_ic' => true, 'sort_order' => 2],
-            ['name' => 'ShadowClan territory', 'slug' => 'shadowclan-territory', 'description' => 'Open role-play beneath the shadowed pines.', 'is_ic' => true, 'sort_order' => 3],
-            ['name' => 'WindClan territory', 'slug' => 'windclan-territory', 'description' => 'Open role-play across the high, open ground.', 'is_ic' => true, 'sort_order' => 4],
-        ]);
+        $this->call(MapForumSeeder::class);
 
         ShopItem::create(['name' => 'Moss poultice', 'slug' => 'moss-poultice', 'description' => 'A small restorative bundle that can help return energy to a weary character.', 'cost' => 100, 'effect' => 'Energy restoration']);
         ShopItem::create(['name' => 'Energy return', 'slug' => 'energy-return', 'description' => 'Restores 10 energy to one character.', 'cost' => 20, 'effect' => 'Energy return']);

@@ -3,10 +3,13 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class CharacterItem extends Model
 {
+    use SoftDeletes;
+
     protected $fillable = ['character_id', 'shop_item_id', 'applied_by', 'applied_at'];
 
     protected function casts(): array

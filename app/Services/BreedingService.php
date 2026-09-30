@@ -11,14 +11,21 @@ use RuntimeException;
 
 class BreedingService
 {
-    public function beginPregnancy(Character $female, Character $male, bool $mates, ?Carbon $now = null): Pregnancy
+    public function beginPregnancy(Character $female, Character $male, bool $mates, ?Carbon $now = null, ?int $requesterId = null): Pregnancy
     {
         $now ??= now();
+        $requesterId ??= $female->user_id;
+        if (! in_array($requesterId, [$female->user_id, $male->user_id], true)) {
+            throw new RuntimeException('The breeding request must come from a character owner.');
+        }
         if ($female->sex !== 'female' || $male->sex !== 'male') {
             throw new RuntimeException('Breeding requires one female and one male character.');
         }
         if ((float) $female->age_moons < 12 || (float) $male->age_moons < 12) {
             throw new RuntimeException('Both characters must be at least 12 moons old to breed.');
+        }
+        if ($female->apprentices()->exists()) {
+            throw new RuntimeException('A female with an apprentice cannot become pregnant.');
         }
         if ($female->status !== 'active' || $male->status !== 'active' || $female->is_frozen || $male->is_frozen) {
             throw new RuntimeException('Only active, unfrozen characters may breed.');
@@ -32,10 +39,11 @@ class BreedingService
         if (Pregnancy::where('female_character_id', $female->id)->where('status', 'pregnant')->exists()) {
             throw new RuntimeException('This character is already pregnant.');
         }
+        $mates = $female->mates()->whereKey($male->id)->exists();
 
-        return DB::transaction(function () use ($female, $male, $mates, $now) {
-            $this->charge($female, $this->breedingCost($female));
-            $this->charge($male, $this->breedingCost($male));
+        return DB::transaction(function () use ($female, $male, $mates, $now, $requesterId) {
+            $requesterCharacter = $female->user_id === $requesterId ? $female : $male;
+            $this->charge($requesterCharacter, $this->breedingCost($requesterCharacter));
 
             $pregnancy = Pregnancy::create([
                 'female_character_id' => $female->id,
@@ -95,9 +103,9 @@ class BreedingService
                     $ownerId = $femaleKitCount < $femaleKitLimit ? $female->user_id : $male->user_id;
                     $femaleKitCount++;
                 }
-                $kit = $litter->kits()->create(['status' => $outcome['status'], 'sex' => $kitSex, 'coat_notes' => $this->inheritCoatNotes($female, $male), 'has_disability' => $outcome['has_disability'], 'owner_id' => $ownerId, 'energy' => $outcome['status'] === 'surviving' ? ($outcome['has_disability'] ? 25 : 70) : 0]);
+                $kit = $litter->kits()->create(['status' => $outcome['status'], 'sex' => $kitSex, 'coat_notes' => $this->inheritCoatNotes($female, $male), 'has_disability' => $outcome['has_disability'], 'low_health' => $outcome['low_health'], 'owner_id' => $ownerId, 'energy' => $outcome['status'] === 'surviving' ? ($outcome['low_health'] ? 25 : 70) : 0]);
                 if ($ownerId && $outcome['status'] === 'surviving') {
-                    $kitCharacter = Character::create(['user_id' => $ownerId, 'name' => 'Unnamed kit '.$kit->id, 'sex' => $kitSex, 'age_moons' => 0, 'allegiance' => $femaleKitCount <= $femaleKitLimit ? $female->allegiance : $male->allegiance, 'role' => 'kit', 'energy' => $kit->energy, 'status' => 'active', 'health_status' => $kit->has_disability ? 'low-health' : 'healthy', 'looks' => $kit->coat_notes, 'appearance' => 'A newborn kit awaiting a profile.', 'personality' => 'A newborn kit awaiting a story.', 'history' => 'Born in Cavernas.', 'adopted' => false]);
+                    $kitCharacter = Character::create(['user_id' => $ownerId, 'name' => 'Unnamed kit '.$kit->id, 'sex' => $kitSex, 'age_moons' => 0, 'allegiance' => $femaleKitCount <= $femaleKitLimit ? $female->allegiance : $male->allegiance, 'role' => 'kit', 'energy' => $kit->energy, 'status' => 'active', 'health_status' => $kit->low_health ? 'low-health' : 'healthy', 'looks' => $kit->coat_notes, 'appearance' => 'A newborn kit awaiting a profile.', 'personality' => 'A newborn kit awaiting a story.', 'history' => 'Born in Cavernas.', 'adopted' => false]);
                     $kit->update(['character_id' => $kitCharacter->id]);
                     $kitCharacter->relationships()->createMany([
                         ['related_character_id' => $female->id, 'type' => 'parent', 'status' => 'accepted', 'accepted_at' => $now],
@@ -107,9 +115,6 @@ class BreedingService
             }
             $litter->update(['surviving_count' => $surviving]);
             $pregnancy->update(['status' => 'birthed']);
-            if (! $female->role_locked) {
-                $female->update(['role' => $pregnancy->previous_female_role ?: $female->calculatedRole()]);
-            }
 
             return $litter->load('kits');
         });
@@ -118,15 +123,15 @@ class BreedingService
     private function outcome(bool $different, bool $lowEnergy): array
     {
         if (! $different && ! $lowEnergy) {
-            return ['status' => 'surviving', 'has_disability' => false];
+            return ['status' => 'surviving', 'has_disability' => false, 'low_health' => false];
         }
         $deathChance = $different ? 70 : ($lowEnergy ? 45 : 0);
-        $disabilityChance = $different ? 15 : ($lowEnergy ? 25 : 0);
+        $disabilityChance = $different ? 0 : ($lowEnergy ? 25 : 0);
         $roll = random_int(1, 100);
 
         return $roll <= $deathChance
-            ? ['status' => 'deceased', 'has_disability' => false]
-            : ['status' => 'surviving', 'has_disability' => $roll <= $deathChance + $disabilityChance];
+            ? ['status' => 'deceased', 'has_disability' => false, 'low_health' => false]
+            : ['status' => 'surviving', 'has_disability' => $roll <= $deathChance + $disabilityChance, 'low_health' => $different || $roll <= $deathChance + $disabilityChance];
     }
 
     private function breedingCost(Character $character): int

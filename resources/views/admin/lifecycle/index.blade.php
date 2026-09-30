@@ -1,4 +1,4 @@
-@extends('layouts.cavernas')
+@extends('layouts.staff')
 
 @section('content')
 <section class="page-heading page-heading-theme compact-heading"><p class="eyebrow">Administrator panel</p><h1>Lifecycle<br><em>overview.</em></h1><p>Review frozen, inactive, and archived characters and jump directly into staff editing.</p></section>

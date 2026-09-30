@@ -41,12 +41,23 @@ class ForumPostingTest extends TestCase
         $response->assertSessionHasErrors('body');
     }
 
+    public function test_seventy_characters_are_not_enough_for_an_ic_post(): void
+    {
+        $board = $this->makeBoard(true);
+        $user = User::factory()->create(['status' => 'approved']);
+        $character = $this->makeCharacter($user);
+
+        $this->actingAs($user)->post(route('forum.thread.store', $board), [
+            'title' => 'A short scene', 'body' => str_repeat('Quiet paw steps. ', 18), 'character_id' => $character->id,
+        ])->assertSessionHasErrors('body');
+    }
+
     public function test_approved_member_can_create_a_thread_and_opening_post(): void
     {
         $board = $this->makeBoard(true);
         $user = User::factory()->create(['status' => 'approved']);
         $character = $this->makeCharacter($user);
-        $body = str_repeat('The morning wind carried the scent of rain through the sleeping hollow. ', 4);
+        $body = str_repeat('The morning wind carried the scent of rain through the sleeping hollow. ', 7);
 
         $response = $this->actingAs($user)->post(route('forum.thread.store', $board), [
             'title' => 'A new trail',
@@ -59,6 +70,57 @@ class ForumPostingTest extends TestCase
         $this->assertDatabaseHas('forum_posts', ['user_id' => $user->id, 'is_ic' => true]);
         $this->assertDatabaseHas('cricket_ledger', ['user_id' => $user->id, 'amount' => 20, 'type' => 'post_thread']);
         $this->assertDatabaseHas('characters', ['id' => $character->id, 'energy' => 90]);
+    }
+
+    public function test_ic_replies_earn_ten_crickets_and_ooc_posts_earn_none(): void
+    {
+        $category = ForumCategory::create(['name' => 'Stories', 'sort_order' => 1]);
+        $icBoard = $category->boards()->create(['name' => 'Territory', 'slug' => 'territory', 'is_ic' => true]);
+        $oocBoard = $category->boards()->create(['name' => 'Chat', 'slug' => 'chat', 'is_ic' => false]);
+        $user = User::factory()->create(['status' => 'approved']);
+        $character = $this->makeCharacter($user);
+        $body = str_repeat('The morning wind carried the scent of rain through the sleeping hollow. ', 7);
+
+        $this->actingAs($user)->post(route('forum.thread.store', $icBoard), ['title' => 'A new trail', 'body' => $body, 'character_id' => $character->id])->assertRedirect();
+        $thread = $icBoard->threads()->firstOrFail();
+        $this->actingAs($user)->post(route('forum.reply.store', $thread), ['body' => $body, 'character_id' => $character->id])->assertRedirect();
+        $this->assertDatabaseHas('cricket_ledger', ['user_id' => $user->id, 'amount' => 20, 'type' => 'post_thread']);
+        $this->assertDatabaseHas('cricket_ledger', ['user_id' => $user->id, 'amount' => 10, 'type' => 'post_reply']);
+
+        $this->actingAs($user)->post(route('forum.thread.store', $oocBoard), ['title' => 'Out of character', 'body' => 'Hello everyone.'])->assertRedirect();
+        $this->actingAs($user)->post(route('forum.reply.store', $oocBoard->threads()->firstOrFail()), ['body' => 'Welcome!'])->assertRedirect();
+        $this->assertDatabaseCount('cricket_ledger', 2);
+    }
+
+    public function test_inactive_character_can_post_at_home_to_regain_energy_but_deceased_cannot(): void
+    {
+        $category = ForumCategory::create(['name' => 'Clan camps', 'sort_order' => 1]);
+        $board = $category->boards()->create(['name' => 'ThunderClan Camp', 'slug' => 'thunderclan-camp', 'is_ic' => true]);
+        $user = User::factory()->create(['status' => 'approved']);
+        $character = $this->makeCharacter($user);
+        $character->update(['energy' => 0, 'status' => 'inactive', 'inactive_at' => now()]);
+        $payload = ['title' => 'Home again', 'body' => str_repeat('The camp welcomes another careful voice back to the changing story. ', 7), 'character_id' => $character->id];
+
+        $this->actingAs($user)->post(route('forum.thread.store', $board), $payload)->assertRedirect();
+        $this->assertDatabaseHas('characters', ['id' => $character->id, 'status' => 'active', 'energy' => 20, 'inactive_at' => null]);
+
+        $character->update(['status' => 'deceased', 'energy' => 0]);
+        $this->actingAs($user)->post(route('forum.thread.store', $board), $payload)->assertSessionHas('error');
+    }
+
+    public function test_enemy_post_that_exhausts_energy_marks_character_inactive(): void
+    {
+        $board = $this->makeBoard(true);
+        $user = User::factory()->create(['status' => 'approved']);
+        $character = $this->makeCharacter($user);
+        $character->update(['energy' => 10]);
+
+        $this->actingAs($user)->post(route('forum.thread.store', $board), [
+            'title' => 'A tiring visit', 'body' => str_repeat('The morning wind carried the scent of rain through the sleeping hollow. ', 7), 'character_id' => $character->id,
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('characters', ['id' => $character->id, 'energy' => 0, 'status' => 'inactive']);
+        $this->assertNotNull($character->fresh()->inactive_at);
     }
 
     private function makeBoard(bool $isIc): ForumBoard

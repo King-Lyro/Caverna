@@ -7,11 +7,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class LitterKit extends Model
 {
-    protected $fillable = ['litter_id', 'character_id', 'status', 'sex', 'energy', 'coat_notes', 'has_disability', 'owner_id'];
+    protected $fillable = ['litter_id', 'character_id', 'status', 'sex', 'energy', 'coat_notes', 'has_disability', 'low_health', 'owner_id'];
 
     protected function casts(): array
     {
-        return ['energy' => 'integer', 'has_disability' => 'boolean'];
+        return ['energy' => 'integer', 'has_disability' => 'boolean', 'low_health' => 'boolean'];
     }
 
     public function litter(): BelongsTo

@@ -1,4 +1,4 @@
-@extends('layouts.cavernas')
+@extends('layouts.staff')
 
 @section('content')
 <section class="page-heading page-heading-theme compact-heading"><p class="eyebrow">Administrator panel</p><h1>Ownership<br><em>history.</em></h1><p>Audit purchases and free character transfers across Cavernas.</p></section>

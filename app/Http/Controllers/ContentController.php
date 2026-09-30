@@ -2,14 +2,48 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ContentPage;
+use App\Models\RuleCategory;
+use App\Models\WorldPage;
+use App\Support\TerritoryMap;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class ContentController extends Controller
 {
     public function show(string $page): View
     {
-        if (in_array($page, ['privacy', 'contact'], true)) {
-            return view('content.page', ['page' => array_merge(trans('site.pages.'.$page), ['sections' => []])]);
+        if ($page === 'map') {
+            return view('content.map', [
+                'page' => $this->pages()['map'],
+                'locations' => TerritoryMap::locations(),
+                'hasArtwork' => is_file(public_path('images/map.png')),
+            ]);
+        }
+
+        if (in_array($page, ['clans', 'outsiders'], true)) {
+            return view('content.world-index', [
+                'page' => $this->pages()[$page],
+                'kind' => $page,
+                'entries' => WorldPage::where('kind', $page)->orderBy('sort_order')->orderBy('id')->get(),
+            ]);
+        }
+
+        if (in_array($page, ['guide', 'privacy', 'contact'], true)) {
+            $contentPage = ContentPage::where('slug', $page)->firstOrFail();
+
+            return view('content.guide', [
+                'page' => $contentPage,
+                'body' => Str::markdown($contentPage->body, ['html_input' => 'strip', 'allow_unsafe_links' => false]),
+            ]);
+        }
+
+        if ($page === 'rules') {
+            return view('content.rules', [
+                'page' => trans('site.pages.rules'),
+                'categories' => RuleCategory::with(['rules' => fn ($query) => $query->orderBy('sort_order')->orderBy('id')])
+                    ->orderBy('sort_order')->orderBy('id')->get(),
+            ]);
         }
 
         abort_unless(array_key_exists($page, $this->pages()), 404);
@@ -28,10 +62,6 @@ class ContentController extends Controller
             'rules' => ['eyebrow' => 'Before you enter', 'title' => "The rules of\nCavernas.", 'intro' => 'A clear set of expectations keeps the world generous, collaborative, and easy to join.', 'sections' => [
                 ['heading' => 'Write with care', 'body' => 'Keep IC posts at least 70 words, respect the people behind the characters, and leave room for other writers to contribute.'],
                 ['heading' => 'Let stories breathe', 'body' => 'Characters can change, fail, and surprise one another. Staff are here to protect the shared world, not to dictate every story.'],
-            ]],
-            'guide' => ['eyebrow' => 'Your first path', 'title' => "A guide for\nnew paws.", 'intro' => 'Start with the rules, choose an allegiance, then build the character you want to follow through the seasons.', 'sections' => [
-                ['heading' => '1. Read the world', 'body' => 'Learn the four allegiances and the territory they share before creating your first character.'],
-                ['heading' => '2. Make a character', 'body' => 'Your first three non-adopted characters are free. Give each one enough history to make their next choice interesting.'],
             ]],
             'clans' => ['eyebrow' => 'Four allegiances', 'title' => "Choose the path\nthat calls.", 'intro' => 'Each clan carries a different relationship with the land. Allegiance shapes where your character belongs and how they spend their energy.', 'sections' => [
                 ['heading' => 'ThunderClan', 'body' => 'Steady hearts, open clearings, and a long memory for those who stand beside them.'],

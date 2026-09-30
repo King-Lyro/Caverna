@@ -6,6 +6,8 @@ use App\Models\ForumPost;
 use App\Models\ModerationReport;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class ModerationController extends Controller
@@ -33,5 +35,28 @@ class ModerationController extends Controller
         $report->update([...$validated, 'reviewed_by' => $request->user()->id]);
 
         return back()->with('status', 'Report updated.');
+    }
+
+    public function bulkResolve(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()->isStaff(), 403);
+        $validated = $request->validate([
+            'reports' => ['required', 'array'],
+            'reports.*.status' => ['nullable', 'in:resolved,dismissed'],
+            'reports.*.resolution' => ['nullable', 'string', 'max:2000'],
+        ]);
+        DB::transaction(function () use ($validated, $request): void {
+            foreach ($validated['reports'] as $id => $fields) {
+                if (empty($fields['status'])) {
+                    continue;
+                }
+                if (mb_strlen(trim((string) ($fields['resolution'] ?? ''))) < 3) {
+                    throw ValidationException::withMessages(['reports.'.$id.'.resolution' => 'Enter a resolution note of at least 3 characters.']);
+                }
+                ModerationReport::findOrFail($id)->update(['status' => $fields['status'], 'resolution' => $fields['resolution'], 'reviewed_by' => $request->user()->id]);
+            }
+        });
+
+        return back()->with('status', 'Selected reports updated.');
     }
 }

@@ -2,6 +2,8 @@
 
 @section('content')
 @php($images = $character->images ?? [])
+@php($rareEyeItem = $character->appliedItems->first(fn ($applied) => $applied->item->effect === 'Rare eye color'))
+@php($disabilityItem = $character->appliedItems->first(fn ($applied) => $applied->item->effect === 'Disability'))
 @if (session('status'))<div class="form-success">{{ session('status') }}</div>@endif
 
 <section class="character-profile">
@@ -10,13 +12,25 @@
 			<p class="eyebrow">{{ $character->allegiance }} <span aria-hidden="true">·</span> {{ $character->role }}</p>
 			<h1>{{ $character->name }}</h1>
 			<p class="profile-meta">{{ ucfirst($character->sex) }} <span aria-hidden="true">·</span> {{ $character->age_moons }} moons</p>
+			@auth @if ($character->user_id === auth()->id())<a class="text-link profile-edit-link" href="{{ route('characters.edit', $character) }}">Edit character</a>@endif @endauth
 			@if ($character->status === 'deceased')<p class="profile-deceased">Deceased{{ $character->died_at ? ' · '.$character->died_at->format('M j, Y') : '' }}</p>@elseif ($character->is_frozen)<p class="profile-deceased">Frozen{{ $character->frozen_reason ? ' · '.$character->frozen_reason : '' }}</p>@endif
 		</div>
 		<div class="profile-energy" aria-label="Energy: {{ $character->energy }} out of 100">
 			<div class="energy-label"><span>Energy</span><strong>{{ $character->energy }}/100</strong></div>
-			<div class="energy-track"><span style="width: {{ $character->energy }}%"></span></div>
+			<div class="energy-track" title="{{ $character->energy }} out of 100 energy"><span style="width: {{ $character->energy }}%"></span></div>
 		</div>
 	</header>
+
+	@if ($saleListing || $adoptionListing)
+	<div class="profile-listing-banners">
+		@if ($saleListing)
+			<div class="profile-listing-banner"><div><span class="eyebrow">For sale</span><strong>{{ number_format($saleListing->price) }} crickets</strong></div>@auth @if ($saleListing->owner_id === auth()->id())<form method="POST" action="{{ route('sales.withdraw', $saleListing) }}">@csrf @method('PATCH')<button class="button" type="submit">Withdraw from sale</button></form>@else<form method="POST" action="{{ route('sales.purchase', $saleListing) }}">@csrf<button class="button button-primary" type="submit">Purchase <span aria-hidden="true">→</span></button></form>@endif @else<a class="text-link" href="{{ route('login') }}">Log in to purchase →</a>@endauth</div>
+		@endif
+		@if ($adoptionListing)
+			<div class="profile-listing-banner"><div><span class="eyebrow">Up for adoption</span><strong>{{ $adoptionListing->claim_policy === 'instant' ? 'Instant claim' : 'Application required' }}</strong></div><a class="text-link" href="{{ route('adoption.show', $adoptionListing) }}">View listing <span aria-hidden="true">↗</span></a></div>
+		@endif
+	</div>
+	@endif
 
 	<div class="profile-layout">
 		<div class="profile-media">
@@ -46,13 +60,21 @@
 		<div class="profile-sidebar">
 			<section class="profile-facts">
 				<div class="profile-fact"><span class="eyebrow">Mating</span><strong>{{ $character->mates->first()?->name ?: ($character->mate ?: 'None') }}</strong></div>
-				<div class="profile-fact"><span class="eyebrow">Kits</span><strong>{{ $character->kits ?: 'None recorded' }}</strong></div>
+				@if ($profileStats['familyKits']->isNotEmpty() || $character->kits)<div class="profile-fact"><span class="eyebrow">Kits</span><strong>{{ $profileStats['familyKits']->pluck('name')->join(', ') ?: $character->kits }}</strong></div>@endif
 				@auth
-					@if (! $character->mate && $ownedCharacters->isNotEmpty() && $character->user_id !== auth()->id())
+					@if (! $character->mate && (float) $character->age_moons >= 12 && $character->status === 'active' && ! $character->is_frozen && $ownedCharacters->isNotEmpty() && $character->user_id !== auth()->id())
 						<form method="POST" action="{{ route('characters.mate-request', $character) }}" class="cavernas-form profile-mate-form">
 							@csrf
 							<label>Request with<select name="from_character_id" required><option value="">Choose your character</option>@foreach ($ownedCharacters as $owned)<option value="{{ $owned->id }}">{{ $owned->name }}</option>@endforeach</select></label>
 							<button class="button button-primary" type="submit">Request mate <span aria-hidden="true">→</span></button>
+						</form>
+					@endif
+					@php($mentorRole = strtolower(trim((string) $character->role)))
+					@if (in_array($mentorRole, ['warrior', 'leader', 'deputy'], true) && $character->status === 'active' && ! $character->is_frozen && $character->user_id !== auth()->id() && $eligibleApprentices->isNotEmpty())
+						<form method="POST" action="{{ route('characters.mentor-request', $character) }}" class="cavernas-form profile-mate-form">
+							@csrf
+							<label>Request mentorship for<select name="apprentice_character_id" required><option value="">Choose your apprentice</option>@foreach ($eligibleApprentices as $apprentice)<option value="{{ $apprentice->id }}">{{ $apprentice->name }}</option>@endforeach</select></label>
+							<button class="button button-primary" type="submit">Request mentor <span aria-hidden="true">→</span></button>
 						</form>
 					@endif
 				@endauth
@@ -61,7 +83,22 @@
 			<section class="profile-care">
 				<div><span class="eyebrow">Care status</span><strong>{{ ucfirst($character->health_status ?? 'healthy') }}</strong></div>
 				<p>{{ empty($character->ailments ?? []) ? 'No current ailments.' : 'Ailments: '.implode(', ', $character->ailments) }}</p>
+				@auth @if ($character->user_id === auth()->id() && (float) $character->age_moons >= 12 && $character->role !== 'queen' && $character->status === 'active' && ! $character->is_frozen)<a class="text-link" href="{{ route('breeding.create') }}">Begin breeding</a>@endif @endauth
 			</section>
+
+			@auth
+				@if ($character->user_id === auth()->id() && $character->status === 'active' && ! $character->is_frozen && ! $saleListing && ! $adoptionListing)
+					<section class="profile-owner-actions">
+						<span class="eyebrow">Character exchange</span>
+						<div class="profile-owner-actions-links"><a class="text-link" href="{{ route('sales.create') }}">List for sale <span aria-hidden="true">↗</span></a><a class="text-link" href="{{ route('adoption.create') }}">Send to adoption center <span aria-hidden="true">↗</span></a></div>
+						<form method="POST" action="{{ route('characters.transfer', $character) }}" class="cavernas-form profile-give-form">
+							@csrf
+							<label>Give to member (email)<input type="email" name="recipient_email" required></label>
+							<button class="button" type="submit">Give away <span aria-hidden="true">→</span></button>
+						</form>
+					</section>
+				@endif
+			@endauth
 		</div>
 	</div>
 
@@ -84,25 +121,24 @@
 				<article class="profile-bio"><p class="eyebrow">History</p><p>{{ $character->history }}</p></article>
 			</div>
 			<div class="profile-character-facts">
-				@if ($character->appliedItems->isNotEmpty())<div class="profile-item-badges"><p class="eyebrow">Applied items</p><div>@foreach ($character->appliedItems as $applied)<span title="{{ $applied->item->description }}">{{ $applied->item->name }}</span>@endforeach</div></div>@endif
+				@if ($character->appliedItems->isNotEmpty())<div class="profile-item-badges"><p class="eyebrow">Applied items</p><div>@foreach ($character->appliedItems as $applied)<div class="profile-applied-item"><span title="{{ $applied->item->description }}">@if ($applied->item->iconUrl())<img src="{{ $applied->item->iconUrl() }}" alt="">@endif{{ $applied->item->name }}</span>@auth @if ($character->user_id === auth()->id() && ! str_starts_with($applied->item->effect, 'Energy'))<form method="POST" action="{{ route('characters.items.destroy', [$character, $applied]) }}">@csrf @method('DELETE')@if ($applied->item->effect === 'Outsider access')<label>Return to<select name="clan_allegiance" required><option value="">Choose clan</option>@foreach (['ThunderClan','RiverClan','ShadowClan','WindClan'] as $clan)<option value="{{ $clan }}">{{ $clan }}</option>@endforeach</select></label>@elseif ($applied->item->effect === 'Rare eye color')<label>Eye color<input name="eye_color" maxlength="80" required></label>@endif<button type="submit" class="text-link">Remove</button></form>@endif @endauth</div>@endforeach</div></div>@endif
 				<div class="profile-information-rows">
 					<div><span>Status</span><strong>{{ ucfirst($character->status) }}</strong></div>
 					<div><span>Role</span><strong>{{ ucfirst(str_replace('_', ' ', $character->role)) }}</strong></div>
-					<div><span>Eye color</span><strong>{{ $character->eye_color ?: 'Unknown' }}</strong></div>
+					<div><span>Eye color</span><strong>@if ($rareEyeItem?->item->iconUrl())<img class="profile-field-icon" src="{{ $rareEyeItem->item->iconUrl() }}" alt="">@endif{{ $character->eye_color ?: 'Unknown' }}</strong></div>
 					<div><span>Allegiance</span><strong>{{ $character->allegiance }}</strong></div>
 					<div><span>Adopted</span><strong>{{ $character->adopted ? 'Yes' : 'No' }}</strong></div>
 					<div><span>Mate</span><strong>{{ $character->mate ?: 'None' }}</strong></div>
-					<div><span>Kits</span><strong>{{ $character->kits ?: 'None recorded' }}</strong></div>
 					<div><span>IC posts</span><strong>{{ $profileStats['characterPosts'] }}</strong></div>
 					<div><span>Stories joined</span><strong>{{ $profileStats['characterThreads'] }}</strong></div>
 					<div><span>Rare traits</span><strong>{{ empty($character->traits ?? []) ? 'None' : implode(', ', $character->traits) }}</strong></div>
 					<div><span>Cosmetic genetics</span><strong>{{ collect(['Male calico' => $character->male_calico, 'Chimera / mosaicism' => $character->chimera_mosaicism, 'Karpati / roan / salmiak' => $character->karpati_roan_salmiak, 'White sepia' => $character->white_sepia, 'Albino' => $character->albino, 'Purebred' => $character->purebred])->filter()->keys()->join(', ') ?: 'None' }}</strong></div>
-					<div><span>Disability</span><strong>{{ $character->disability ?: 'None' }}</strong></div>
-					<div><span>Mentor</span><strong>{{ $character->mentors->first()?->name ?: 'None' }}</strong></div>
-					<div><span>Apprentices</span><strong>{{ $character->apprentices->pluck('name')->join(', ') ?: 'None' }}</strong></div>
-					<div><span>Parents</span><strong>{{ $character->parentRelationships->pluck('relatedCharacter.name')->join(', ') ?: 'None recorded' }}</strong></div>
-					<div><span>Siblings</span><strong>{{ $profileStats['siblings']->pluck('name')->join(', ') ?: 'None recorded' }}</strong></div>
-					<div><span>Kits</span><strong>{{ $profileStats['familyKits']->pluck('name')->join(', ') ?: ($character->kits ?: 'None recorded') }}</strong></div>
+					<div><span>Disability</span><strong>@if ($disabilityItem?->item->iconUrl())<img class="profile-field-icon" src="{{ $disabilityItem->item->iconUrl() }}" alt="">@endif{{ $character->disability ?: 'None' }}</strong></div>
+					@if ($character->mentors->isNotEmpty())<div><span>Mentor</span><strong>{{ $character->mentors->pluck('name')->join(', ') }}</strong></div>@endif
+					@if ($character->apprentices->isNotEmpty())<div><span>Apprentices</span><strong>{{ $character->apprentices->pluck('name')->join(', ') }}</strong></div>@endif
+					@if ($character->parentRelationships->isNotEmpty())<div><span>Parents</span><strong>{{ $character->parentRelationships->pluck('relatedCharacter.name')->join(', ') }}</strong></div>@endif
+					@if ($profileStats['siblings']->isNotEmpty())<div><span>Siblings</span><strong>{{ $profileStats['siblings']->pluck('name')->join(', ') }}</strong></div>@endif
+					@if ($profileStats['familyKits']->isNotEmpty() || $character->kits)<div><span>Kits</span><strong>{{ $profileStats['familyKits']->pluck('name')->join(', ') ?: $character->kits }}</strong></div>@endif
 				</div>
 				<div class="profile-care profile-care-inline"><div><span class="eyebrow">Care status</span><strong>{{ ucfirst($character->health_status ?? 'healthy') }}</strong></div><p>{{ empty($character->ailments ?? []) ? 'No current ailments.' : 'Ailments: '.implode(', ', $character->ailments) }}</p></div>
 			</div>

@@ -1,0 +1,19 @@
+@extends('layouts.cavernas')
+
+@section('content')
+<section class="form-panel character-form"><p class="eyebrow">Character profile</p><h1>Edit<br><em>{{ $character->name }}.</em></h1><p class="form-intro">Age is set when a character is created and advances with the seasons.</p>
+<form method="POST" action="{{ route('characters.update', $character) }}" enctype="multipart/form-data" class="cavernas-form">@csrf @method('PATCH')
+<div class="form-columns"><label>Name<input name="name" value="{{ old('name', $character->name) }}" required></label><label>Sex<select name="sex" required><option value="female" @selected(old('sex', $character->sex) === 'female')>She-cat</option><option value="male" @selected(old('sex', $character->sex) === 'male')>Tom</option></select></label></div>
+<label>Eye color<input name="eye_color" value="{{ old('eye_color', $character->eye_color) }}" required></label>
+<div class="form-columns"><label>Age in moons<input value="{{ $character->age_moons }}" disabled></label><label>Allegiance / outsider role<select name="allegiance" required>@foreach (['ThunderClan','RiverClan','ShadowClan','WindClan'] as $allegiance)<option value="{{ $allegiance }}" @disabled(! $clanAvailability[$allegiance] && $character->allegiance !== $allegiance) @selected(old('allegiance', $selectedAllegiance) === $allegiance)>{{ $allegiance }}</option>@endforeach @if ($hasOutsiderPass || in_array($character->allegiance, ['outsider','Kittypet','Loner','Rogue'], true)) @foreach (['Kittypet','Loner','Rogue'] as $allegiance)<option value="{{ $allegiance }}" @selected(old('allegiance', $selectedAllegiance) === $allegiance)>{{ $allegiance }}</option>@endforeach @endif</select></label></div>
+<label>Looks <small>15 words or fewer</small><input name="looks" value="{{ old('looks', $character->looks) }}" required></label>
+<label>Disability <small>Requires an applied or selected disability item.</small><input name="disability" value="{{ old('disability', $character->disability) }}" maxlength="255"></label>
+<label>Images <small>Keep three images total. Remove a line below before adding a replacement file.</small><input type="file" name="images[]" accept="image/jpeg,image/png,image/webp" multiple></label>
+<label>Image URLs or saved images <small>One per line</small><textarea name="image_urls" rows="3">{{ old('image_urls', implode("\n", $character->images ?? [])) }}</textarea></label>
+<label>Forum avatar <small>Optional replacement for the IC portrait.</small><input type="file" name="forum_avatar" accept="image/jpeg,image/png,image/webp"></label>
+@if ($availableEnhancements->isNotEmpty())<fieldset class="character-enhancements"><legend>Apply purchased enhancements</legend>@foreach ($availableEnhancements as $inventory)<label class="checkbox-label"><input type="checkbox" name="enhancements[]" value="{{ $inventory->id }}" @checked(in_array($inventory->id, old('enhancements', [])))>@if ($inventory->item->iconUrl())<img src="{{ $inventory->item->iconUrl() }}" alt="">@endif{{ $inventory->item->name }} <small>({{ $inventory->quantity }} available)</small></label>@endforeach</fieldset>@endif
+<label>Appearance <small>At least 250 words.</small><textarea name="appearance" rows="8" required>{{ old('appearance', $character->appearance) }}</textarea></label>
+<label>Personality <small>At least 250 words.</small><textarea name="personality" rows="8" required>{{ old('personality', $character->personality) }}</textarea></label>
+<label>History <small>At least 250 words.</small><textarea name="history" rows="8" required>{{ old('history', $character->history) }}</textarea></label>
+<button class="button button-primary" type="submit">Save character</button></form></section>
+@endsection

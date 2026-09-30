@@ -15,13 +15,22 @@
 
 <section class="dashboard-section">
     <div class="section-heading"><div><p class="eyebrow">Your characters</p><h2>Lives in progress.</h2></div><a class="text-link" href="{{ route('characters.create') }}">Create character <span aria-hidden="true">↗</span></a></div>
-    <div class="character-grid">
+    <div class="character-directory-scroll"><table class="character-directory-table">
+        <thead><tr><th scope="col">Character</th><th scope="col">Sex</th><th scope="col">Age</th><th scope="col">Allegiance</th><th scope="col">Energy</th></tr></thead>
+        <tbody>
         @forelse ($characters as $character)
-            <a class="character-card" href="{{ route('characters.show', $character) }}"><div class="character-avatar">{{ strtoupper(substr($character->name, 0, 1)) }}</div><p class="eyebrow">{{ $character->allegiance }}</p><h2>{{ $character->name }}</h2><p>{{ $character->looks }}</p><div class="energy-track"><span style="width: {{ $character->energy }}%"></span></div><small>{{ $character->energy }}/100 energy</small></a>
+            <tr>
+                <td><a class="directory-identity" href="{{ route('characters.show', $character) }}">@php($portrait = $character->images[0] ?? $character->forum_avatar_path ?? $character->avatar_path)@if ($portrait)<img src="{{ filter_var($portrait, FILTER_VALIDATE_URL) ? $portrait : asset('storage/'.$portrait) }}" alt="{{ $character->name }} portrait">@else<span class="directory-avatar">{{ strtoupper(substr($character->name, 0, 1)) }}</span>@endif<span class="directory-name"><strong>{{ $character->name }}</strong>@if ($character->status === 'inactive')<small>Inactive</small>@endif</span></a></td>
+                <td>{{ $character->sex === 'female' ? 'She-cat' : 'Tom' }}</td>
+                <td>{{ number_format((float) $character->age_moons, 1) }} moons</td>
+                <td><span class="directory-allegiance"><span class="clan-dot {{ strtolower($character->allegiance) }}" aria-hidden="true"></span>{{ $character->allegiance }}</span></td>
+                <td><span class="directory-energy" title="{{ $character->energy }} out of 100 energy"><strong>{{ $character->energy }}</strong><span class="energy-track"><span style="width: {{ $character->energy }}%"></span></span></span></td>
+            </tr>
         @empty
-            <div class="forum-empty"><h2>Your camp is quiet.</h2><p>Create your first character to begin.</p></div>
+            <tr><td colspan="5"><div class="forum-empty"><h2>Your camp is quiet.</h2><p>Create your first character to begin.</p></div></td></tr>
         @endforelse
-    </div>
+        </tbody>
+    </table></div>
 </section>
 
 @if ($pregnancies->isNotEmpty())
@@ -33,6 +42,10 @@
 
 @if ($transferRequests->isNotEmpty())
 <section class="dashboard-section"><div class="section-heading"><div><p class="eyebrow">Character transfers</p><h2>Requests waiting for you.</h2></div></div>@foreach ($transferRequests as $transfer)<article class="dashboard-row"><strong>{{ $transfer->character->name }}</strong><span>From {{ $transfer->sender->name }}</span><form method="POST" action="{{ route('characters.transfer.accept', $transfer) }}">@csrf @method('PATCH')<button class="text-link" type="submit">Accept</button></form></article>@endforeach</section>
+@endif
+
+@if ($mentorRequests->isNotEmpty())
+<section class="dashboard-section"><div class="section-heading"><div><p class="eyebrow">Mentor requests</p><h2>Apprentices awaiting your answer.</h2></div></div>@foreach ($mentorRequests as $relationship)<article class="dashboard-row"><strong>{{ $relationship->character->name }}</strong><span>Requests {{ $relationship->relatedCharacter->name }} as mentor</span><form method="POST" action="{{ route('characters.mentor-accept', $relationship) }}">@csrf @method('PATCH')<button class="text-link" type="submit">Accept</button></form></article>@endforeach</section>
 @endif
 
 @if ($adoptionApplications->isNotEmpty())
