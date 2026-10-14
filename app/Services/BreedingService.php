@@ -7,74 +7,83 @@ use App\Models\Litter;
 use App\Models\Pregnancy;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use RuntimeException;
+use DomainException;
 
 class BreedingService
 {
     public function beginPregnancy(Character $female, Character $male, bool $mates, ?Carbon $now = null, ?int $requesterId = null): Pregnancy
     {
         $now ??= now();
+        $female->refresh();
+        $male->refresh();
         $requesterId ??= $female->user_id;
-        if (! in_array($requesterId, [$female->user_id, $male->user_id], true)) {
-            throw new RuntimeException('The breeding request must come from a character owner.');
-        }
-        if ($female->sex !== 'female' || $male->sex !== 'male') {
-            throw new RuntimeException('Breeding requires one female and one male character.');
-        }
-        if ((float) $female->age_moons < 12 || (float) $male->age_moons < 12) {
-            throw new RuntimeException('Both characters must be at least 12 moons old to breed.');
-        }
-        if ($female->apprentices()->exists()) {
-            throw new RuntimeException('A female with an apprentice cannot become pregnant.');
-        }
-        if ($female->status !== 'active' || $male->status !== 'active' || $female->is_frozen || $male->is_frozen) {
-            throw new RuntimeException('Only active, unfrozen characters may breed.');
-        }
-        if ($female->user_id === $male->user_id) {
-            throw new RuntimeException('Members cannot breed their own characters.');
-        }
-        if ($female->energy < 50 || $male->energy < 25) {
-            throw new RuntimeException('Both characters need enough energy to breed.');
-        }
-        if (Pregnancy::where('female_character_id', $female->id)->where('status', 'pregnant')->exists()) {
-            throw new RuntimeException('This character is already pregnant.');
-        }
+        $this->validateRequest($female, $male, $requesterId, $now);
         $mates = $female->mates()->whereKey($male->id)->exists();
 
         return DB::transaction(function () use ($female, $male, $mates, $now, $requesterId) {
+            $previousRole = $this->breedingRole($female, $now);
             $requesterCharacter = $female->user_id === $requesterId ? $female : $male;
-            $this->charge($requesterCharacter, $this->breedingCost($requesterCharacter));
+            $this->charge($requesterCharacter, $this->breedingCost($requesterCharacter, $requesterCharacter->is($female) ? $previousRole : $male->role));
 
             $pregnancy = Pregnancy::create([
                 'female_character_id' => $female->id,
                 'male_character_id' => $male->id,
-                'previous_female_role' => $female->role_locked ? null : $female->role,
+                'previous_female_role' => $previousRole,
                 'mates' => $mates,
                 'conceived_at' => $now,
-                'due_at' => $now->copy()->addWeeks(4),
-                'status' => $mates ? 'pregnant' : 'pregnant',
+                'due_at' => $now->copy()->startOfDay()->addWeeks(4),
+                'status' => 'pregnant',
             ]);
-            if (! $female->role_locked) {
-                $female->update(['role' => 'queen']);
-            }
+            $female->update(['role' => 'queen']);
 
             return $pregnancy;
         });
     }
 
+    public function validateRequest(Character $female, Character $male, int $requesterId, ?Carbon $now = null): void
+    {
+        if (! in_array($requesterId, [$female->user_id, $male->user_id], true)) {
+            throw new DomainException('The breeding request must come from a character owner.');
+        }
+        if ($female->sex !== 'female' || $male->sex !== 'male') {
+            throw new DomainException('Breeding requires one female and one male character.');
+        }
+        if ((float) $female->age_moons < 12 || (float) $male->age_moons < 12) {
+            throw new DomainException('Both characters must be at least 12 moons old to breed.');
+        }
+        if ($female->hasCurrentApprentice()) {
+            throw new DomainException('A female with an apprentice cannot become pregnant.');
+        }
+        if ($female->status !== 'active' || $male->status !== 'active' || $female->is_frozen || $male->is_frozen) {
+            throw new DomainException('Only active, unfrozen characters may breed.');
+        }
+        if ($female->user_id === $male->user_id) {
+            throw new DomainException('Members cannot breed their own characters.');
+        }
+        if ($female->energy < 50 || $male->energy < 25) {
+            throw new DomainException('Both characters need enough energy to breed.');
+        }
+        if (Pregnancy::where('female_character_id', $female->id)->where('status', 'pregnant')->exists()) {
+            throw new DomainException('This character is already pregnant.');
+        }
+        if ($female->isNursingQueen($now)) {
+            throw new DomainException('This queen cannot breed again until her kits are six moons old.');
+        }
+    }
+
     public function breedingCostFor(Character $character): int
     {
-        return $this->breedingCost($character);
+        return $this->breedingCost($character, $this->breedingRole($character));
     }
 
     public function giveBirth(Pregnancy $pregnancy, ?Carbon $now = null): Litter
     {
         $now ??= now();
         if ($pregnancy->status !== 'pregnant') {
-            throw new RuntimeException('This pregnancy has already been processed.');
+            throw new DomainException('This pregnancy has already been processed.');
         }
         if ($pregnancy->due_at->gt($now)) {
-            throw new RuntimeException('This pregnancy is not due yet.');
+            throw new DomainException('This pregnancy is not due yet.');
         }
 
         return DB::transaction(function () use ($pregnancy, $now) {
@@ -134,9 +143,19 @@ class BreedingService
             : ['status' => 'surviving', 'has_disability' => $roll <= $deathChance + $disabilityChance, 'low_health' => $different || $roll <= $deathChance + $disabilityChance];
     }
 
-    private function breedingCost(Character $character): int
+    private function breedingRole(Character $character, ?Carbon $now = null): string
     {
-        return match ($character->role) {
+        if ($character->sex === 'female' && $character->role === 'queen' && ! $character->isNursingQueen($now)) {
+            return Pregnancy::where('female_character_id', $character->id)->where('status', 'birthed')
+                ->latest('due_at')->value('previous_female_role') ?: $character->role;
+        }
+
+        return $character->role;
+    }
+
+    private function breedingCost(Character $character, string $role): int
+    {
+        return match ($role) {
             'medicine_cat' => 35000,
             'leader' => $character->sex === 'female' ? 1000 : 500,
             'deputy' => $character->sex === 'female' ? 500 : 250,
@@ -156,7 +175,7 @@ class BreedingService
         }
         $balance = (int) DB::table('cricket_ledger')->where('user_id', $character->user_id)->sum('amount');
         if ($balance < $cost) {
-            throw new RuntimeException('The character owner does not have enough crickets.');
+            throw new DomainException('The character owner does not have enough crickets.');
         }
         DB::table('cricket_ledger')->insert(['user_id' => $character->user_id, 'amount' => -$cost, 'type' => 'breeding', 'description' => 'Breeding cost for '.$character->name, 'created_at' => now(), 'updated_at' => now()]);
     }

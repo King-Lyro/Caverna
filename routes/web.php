@@ -26,6 +26,7 @@ use App\Http\Controllers\ForumModerationController;
 use App\Http\Controllers\MemorialController;
 use App\Http\Controllers\ModerationController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\PublicProfileController;
 use App\Http\Controllers\ShopController;
 use App\Http\Controllers\StaffApplicationController;
 use App\Http\Controllers\StaffCharacterController;
@@ -42,6 +43,7 @@ Route::get('/forum', [ForumController::class, 'index'])->name('forum');
 Route::get('/forum/boards/{board:slug}', [ForumController::class, 'board'])->name('forum.board');
 Route::get('/forum/threads/{thread:slug}', [ForumController::class, 'thread'])->name('forum.thread');
 Route::get('/characters', [CharacterController::class, 'index'])->name('characters');
+Route::get('/members/{user}', [PublicProfileController::class, 'show'])->name('members.show');
 Route::get('/characters/memorial', [MemorialController::class, 'index'])->name('characters.memorial');
 Route::get('/activity', [ActivityController::class, 'index'])->name('activity');
 Route::get('/shop', [ShopController::class, 'index'])->name('shop');
@@ -54,6 +56,9 @@ Route::get('/dashboard', DashboardController::class)->middleware('auth')->name('
 Route::get('/crickets', [CricketLedgerController::class, 'index'])->middleware('auth')->name('crickets');
 Route::get('/notifications', [NotificationController::class, 'index'])->middleware('auth')->name('notifications');
 Route::get('/account', [AccountController::class, 'edit'])->middleware('auth')->name('account.edit');
+Route::get('/forum/boards/{board:slug}/threads/create', [ForumController::class, 'createThread'])->name('forum.thread.create');
+Route::post('/forum/boards/{board:slug}/threads', [ForumController::class, 'storeThread'])->middleware('throttle:10,1')->name('forum.thread.store');
+Route::post('/forum/threads/{thread:slug}/replies', [ForumController::class, 'storeReply'])->middleware('throttle:10,1')->name('forum.reply.store');
 
 Route::middleware('guest')->group(function () {
     Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
@@ -69,9 +74,6 @@ Route::middleware('guest')->group(function () {
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
 
 Route::middleware('auth')->prefix('forum')->name('forum.')->group(function () {
-    Route::get('/boards/{board:slug}/threads/create', [ForumController::class, 'createThread'])->name('thread.create');
-    Route::post('/boards/{board:slug}/threads', [ForumController::class, 'storeThread'])->name('thread.store');
-    Route::post('/threads/{thread:slug}/replies', [ForumController::class, 'storeReply'])->name('reply.store');
     Route::patch('/posts/{post}', [ForumController::class, 'updatePost'])->name('post.update');
     Route::post('/posts/{post}/report', [ModerationController::class, 'reportPost'])->middleware('throttle:10,1')->name('post.report');
     Route::patch('/threads/{thread:slug}/lock', [ForumModerationController::class, 'lockThread'])->name('thread.lock');
@@ -89,6 +91,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/sales/create', [AdoptionController::class, 'createSale'])->name('sales.create');
     Route::post('/characters', [CharacterController::class, 'store'])->middleware('throttle:10,1')->name('characters.store');
     Route::post('/breeding', [BreedingController::class, 'store'])->middleware('throttle:10,1')->name('breeding.store');
+    Route::patch('/breeding-requests/{breedingRequest}/accept', [BreedingController::class, 'acceptRequest'])->name('breeding.accept');
+    Route::patch('/breeding-requests/{breedingRequest}/reject', [BreedingController::class, 'rejectRequest'])->name('breeding.reject');
     Route::post('/pregnancies/{pregnancy}/birth', [BreedingController::class, 'birth'])->middleware('throttle:10,1')->name('breeding.birth');
     Route::post('/characters/{character}/mate-request', [CharacterController::class, 'requestMate'])->middleware('throttle:10,1')->name('characters.mate-request');
     Route::post('/characters/{character}/mentor-request', [CharacterController::class, 'requestMentor'])->middleware('throttle:10,1')->name('characters.mentor-request');
@@ -103,6 +107,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/adoption', [AdoptionController::class, 'store'])->middleware('throttle:10,1')->name('adoption.store');
     Route::patch('/adoption/applications/{application}', [AdoptionController::class, 'review'])->name('adoption.review');
     Route::patch('/mate-requests/{mateRequest}/accept', [CharacterController::class, 'acceptMate'])->name('characters.mate-accept');
+    Route::patch('/mate-requests/{mateRequest}/reject', [CharacterController::class, 'rejectMate'])->name('characters.mate-reject');
     Route::patch('/character-relationships/{relationship}/accept', [CharacterController::class, 'acceptMentor'])->name('characters.mentor-accept');
     Route::get('/inventory', [ShopController::class, 'inventory'])->name('inventory');
     Route::post('/inventory/{inventory}/use', [ShopController::class, 'useItem'])->name('inventory.use');
@@ -115,7 +120,7 @@ Route::middleware('auth')->group(function () {
 Route::get('/characters/{character}', [CharacterController::class, 'show'])->name('characters.show');
 Route::get('/{kind}/{slug}', [WorldPageController::class, 'show'])->whereIn('kind', ['clans', 'outsiders'])->name('world.show');
 Route::get('/{page}', [ContentController::class, 'show'])->whereIn('page', ['rules', 'guide', 'clans', 'map', 'outsiders', 'privacy', 'contact'])->name('content.page');
-Route::post('/theme/{theme}', [ThemeController::class, 'update'])->name('theme.update');
+Route::post('/theme/{theme}', [ThemeController::class, 'update'])->middleware(['auth', 'admin'])->name('theme.update');
 
 Route::middleware(['auth', 'staff'])->prefix('staff')->name('staff.')->group(function () {
     Route::get('/', StaffControlPanelController::class)->name('index');
@@ -139,6 +144,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/users', [AdminUserController::class, 'index'])->name('users.index');
     Route::patch('/users', [AdminUserController::class, 'bulkUpdate'])->name('users.bulk-update');
     Route::patch('/users/{user}', [AdminUserController::class, 'update'])->name('users.update');
+    Route::post('/users/{user}/crickets', [AdminUserController::class, 'adjustCrickets'])->name('users.crickets.adjust');
     Route::get('/world', [AdminWorldPageController::class, 'index'])->name('world.index');
     Route::get('/world/create', [AdminWorldPageController::class, 'create'])->name('world.create');
     Route::post('/world', [AdminWorldPageController::class, 'store'])->name('world.store');
@@ -181,4 +187,5 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::patch('/content/boards/{board}', [AdminContentController::class, 'updateBoard'])->name('content.boards.update');
     Route::post('/content/modules', [AdminContentController::class, 'storeModule'])->name('content.modules.store');
     Route::patch('/content/modules/{module}', [AdminContentController::class, 'updateModule'])->name('content.modules.update');
+    Route::post('/content/module-images', [AdminContentController::class, 'uploadModuleImage'])->name('content.module-images.store');
 });

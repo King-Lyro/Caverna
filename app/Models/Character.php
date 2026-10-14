@@ -60,6 +60,12 @@ class Character extends Model
         return $this->belongsToMany(self::class, 'character_relationships', 'related_character_id', 'character_id')->wherePivot('type', 'mentor')->wherePivot('status', 'accepted')->withPivot('accepted_at');
     }
 
+    public function hasCurrentApprentice(): bool
+    {
+        return $this->apprentices()->whereIn('characters.role', ['apprentice', 'medicine_cat_apprentice'])
+            ->whereIn('characters.status', ['active', 'inactive'])->exists();
+    }
+
     public function parentRelationships(): HasMany
     {
         return $this->hasMany(CharacterRelationship::class)->where('type', 'parent')->where('status', 'accepted');

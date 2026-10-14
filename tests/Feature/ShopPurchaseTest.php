@@ -15,6 +15,45 @@ class ShopPurchaseTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_upgrade_delists_all_requested_items_without_removing_inventory(): void
+    {
+        $member = User::factory()->create(['status' => 'approved']);
+        $items = collect(['Flea treatment', 'Tick treatment', 'Illness treatment', 'Moonlit eyes trait'])
+            ->map(function ($name) use ($member) {
+                $item = ShopItem::create([
+                    'name' => $name, 'slug' => \Illuminate\Support\Str::slug($name),
+                    'description' => 'Historic item.', 'cost' => 50, 'is_available' => true,
+                ]);
+                Inventory::create(['user_id' => $member->id, 'shop_item_id' => $item->id, 'quantity' => 2]);
+
+                return $item;
+            });
+        (require database_path('migrations/2026_10_15_000004_delist_treatment_and_trait_items.php'))->up();
+        $shop = $this->get(route('shop'))->assertOk();
+        foreach ($items as $item) {
+            $shop->assertDontSee($item->name);
+            $this->assertFalse($item->fresh()->is_available);
+            $this->assertDatabaseHas('inventories', ['shop_item_id' => $item->id, 'quantity' => 2]);
+        }
+    }
+    public function test_delisted_items_remain_in_inventories_but_not_the_shop(): void
+    {
+        $member = User::factory()->create(['status' => 'approved']);
+        $treatment = ShopItem::create([
+            'name' => 'Illness treatment',
+            'slug' => 'illness-treatment',
+            'description' => 'Historic treatment.',
+            'cost' => 150,
+            'effect' => 'Treat sickness',
+            'is_available' => false,
+        ]);
+        Inventory::create(['user_id' => $member->id, 'shop_item_id' => $treatment->id, 'quantity' => 1]);
+
+        $this->get(route('shop'))->assertOk()->assertDontSee('Illness treatment');
+        $this->actingAs($member)->get(route('inventory'))->assertOk()->assertSee('Illness treatment');
+        $this->assertDatabaseHas('inventories', ['user_id' => $member->id, 'shop_item_id' => $treatment->id, 'quantity' => 1]);
+    }
+
     public function test_approved_member_can_buy_an_item_and_receive_inventory_quantity(): void
     {
         $user = User::factory()->create(['status' => 'approved']);

@@ -5,7 +5,7 @@ namespace App\Console\Commands;
 use App\Models\Pregnancy;
 use App\Services\BreedingService;
 use Illuminate\Console\Command;
-use RuntimeException;
+use DomainException;
 
 class ProcessDuePregnancies extends Command
 {
@@ -19,7 +19,7 @@ class ProcessDuePregnancies extends Command
             foreach ($pregnancies as $pregnancy) {
                 try {
                     $breeding->giveBirth($pregnancy);
-                } catch (RuntimeException $exception) {
+                } catch (DomainException $exception) {
                     $this->warn('Pregnancy '.$pregnancy->id.' was not processed: '.$exception->getMessage());
                 }
             }

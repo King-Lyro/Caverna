@@ -12,7 +12,7 @@
         <div class="forum-category-heading"><div><p class="eyebrow">{{ __('site.forum.category') }}</p><h2>{{ $category->name }}</h2></div><span>{{ $category->boards->count() }} {{ __('site.forum.boards') }}</span></div>
         @foreach ($category->boards as $board)
             <a class="forum-board" href="{{ route('forum.board', $board) }}">
-                <span class="board-glyph {{ $board->is_ic ? 'board-glyph-ic' : '' }}">{{ $board->is_ic ? '✦' : '·' }}</span>
+                <span class="board-glyph {{ $board->is_ic ? 'board-glyph-ic' : '' }}"><img src="{{ asset('images/icons/paw_icon.png') }}" alt=""></span>
                 <span class="board-copy"><strong>{{ $board->name }}</strong><small>{{ $board->description }}</small></span>
                 <span class="board-count">{{ $board->threads_count }}<small>{{ __('site.forum.threads') }}</small></span>
                 <span class="board-arrow" aria-hidden="true">↗</span>

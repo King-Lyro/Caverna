@@ -66,7 +66,7 @@
 						<form method="POST" action="{{ route('characters.mate-request', $character) }}" class="cavernas-form profile-mate-form">
 							@csrf
 							<label>Request with<select name="from_character_id" required><option value="">Choose your character</option>@foreach ($ownedCharacters as $owned)<option value="{{ $owned->id }}">{{ $owned->name }}</option>@endforeach</select></label>
-							<button class="button button-primary" type="submit">Request mate <span aria-hidden="true">→</span></button>
+							<button class="button button-primary" type="submit">Send breeding request <span aria-hidden="true">→</span></button>
 						</form>
 					@endif
 					@php($mentorRole = strtolower(trim((string) $character->role)))
@@ -83,7 +83,7 @@
 			<section class="profile-care">
 				<div><span class="eyebrow">Care status</span><strong>{{ ucfirst($character->health_status ?? 'healthy') }}</strong></div>
 				<p>{{ empty($character->ailments ?? []) ? 'No current ailments.' : 'Ailments: '.implode(', ', $character->ailments) }}</p>
-				@auth @if ($character->user_id === auth()->id() && (float) $character->age_moons >= 12 && $character->role !== 'queen' && $character->status === 'active' && ! $character->is_frozen)<a class="text-link" href="{{ route('breeding.create') }}">Begin breeding</a>@endif @endauth
+				@auth @if ($character->user_id === auth()->id() && (float) $character->age_moons >= 12 && $character->role !== 'queen' && $character->status === 'active' && ! $character->is_frozen && ($character->sex !== 'female' || ! $character->hasCurrentApprentice()))<a class="text-link" href="{{ route('breeding.create') }}">Begin breeding</a>@endif @endauth
 			</section>
 
 			@auth
@@ -116,9 +116,9 @@
 		<div class="profile-character-information">
 			<div class="profile-character-bios">
 				<article class="profile-bio profile-bio-featured"><p class="eyebrow">Looks</p><p>{{ $character->looks }}</p></article>
-				<article class="profile-bio"><p class="eyebrow">Appearance</p><p>{{ $character->appearance }}</p></article>
-				<article class="profile-bio"><p class="eyebrow">Personality</p><p>{{ $character->personality }}</p></article>
-				<article class="profile-bio"><p class="eyebrow">History</p><p>{{ $character->history }}</p></article>
+				<article class="profile-bio"><p class="eyebrow">Appearance</p><div>{!! \Illuminate\Support\Str::markdown($character->appearance) !!}</div></article>
+				<article class="profile-bio"><p class="eyebrow">Personality</p><div>{!! \Illuminate\Support\Str::markdown($character->personality) !!}</div></article>
+				<article class="profile-bio"><p class="eyebrow">History</p><div>{!! \Illuminate\Support\Str::markdown($character->history) !!}</div></article>
 			</div>
 			<div class="profile-character-facts">
 				@if ($character->appliedItems->isNotEmpty())<div class="profile-item-badges"><p class="eyebrow">Applied items</p><div>@foreach ($character->appliedItems as $applied)<div class="profile-applied-item"><span title="{{ $applied->item->description }}">@if ($applied->item->iconUrl())<img src="{{ $applied->item->iconUrl() }}" alt="">@endif{{ $applied->item->name }}</span>@auth @if ($character->user_id === auth()->id() && ! str_starts_with($applied->item->effect, 'Energy'))<form method="POST" action="{{ route('characters.items.destroy', [$character, $applied]) }}">@csrf @method('DELETE')@if ($applied->item->effect === 'Outsider access')<label>Return to<select name="clan_allegiance" required><option value="">Choose clan</option>@foreach (['ThunderClan','RiverClan','ShadowClan','WindClan'] as $clan)<option value="{{ $clan }}">{{ $clan }}</option>@endforeach</select></label>@elseif ($applied->item->effect === 'Rare eye color')<label>Eye color<input name="eye_color" maxlength="80" required></label>@endif<button type="submit" class="text-link">Remove</button></form>@endif @endauth</div>@endforeach</div></div>@endif
@@ -149,7 +149,7 @@
 
 	<article class="profile-information-card profile-tab-panel" data-profile-panel="player" hidden>
 		<div class="profile-information-heading"><p class="eyebrow">Player information</p><span aria-hidden="true">02</span></div>
-		<div class="profile-player-copy"><strong>{{ $character->user->name }}</strong>@if (! $character->user->hide_personal_info)@if ($character->user->pronouns)<p>{{ $character->user->pronouns }}</p>@endif @if ($character->user->bio)<p>{{ $character->user->bio }}</p>@endif @else<p>Personal information is private.</p>@endif</div>
+		<div class="profile-player-copy"><strong><a href="{{ route('members.show', $character->user) }}">{{ $character->user->name }}</a></strong>@if (! $character->user->hide_personal_info)@if ($character->user->pronouns)<p>{{ $character->user->pronouns }}</p>@endif @if ($character->user->bio)<div>{!! \Illuminate\Support\Str::markdown($character->user->bio) !!}</div>@endif @else<p>Personal information is private.</p>@endif<a class="text-link" href="{{ route('members.show', $character->user) }}">View player profile ↗</a></div>
 		<div class="profile-information-rows profile-player-rows"><div><span>Member since</span><strong>{{ $character->user->created_at->format('M j, Y') }}</strong></div><div><span>Posts</span><strong>{{ $profileStats['playerPosts'] }}</strong></div><div><span>Stories</span><strong>{{ $profileStats['playerThreads'] }}</strong></div></div>
 	</article>
 

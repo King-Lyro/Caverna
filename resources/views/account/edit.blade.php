@@ -11,7 +11,7 @@
         <label>Username<input name="name" value="{{ old('name', $user->name) }}" required></label>
         <label>Email <small>Email cannot be changed here.</small><input value="{{ $user->email }}" disabled></label>
         <label>Avatar <small>JPG, PNG, or WebP up to 1MB.</small><input type="file" name="avatar" accept="image/jpeg,image/png,image/webp"></label>
-        <label>Player information<textarea name="bio" rows="6" placeholder="Tell other members about yourself.">{{ old('bio', $user->bio) }}</textarea></label>
+        <label>Player information</label><textarea name="bio" rows="6" placeholder="Tell other members about yourself.">{{ old('bio', $user->bio) }}</textarea><div data-rich-editor data-editor-target="bio" aria-label="Player information editor"></div>
         <div class="form-columns"><label>Pronouns<input name="pronouns" value="{{ old('pronouns', $user->pronouns) }}" placeholder="she/her"></label><label>Age<input type="number" name="age" min="13" max="120" value="{{ old('age', $user->age) }}"></label></div>
         <div class="form-columns"><label>Location<input name="location" value="{{ old('location', $user->location) }}"></label><label>Timezone<input name="timezone" value="{{ old('timezone', $user->timezone) }}" placeholder="America/New_York"></label></div>
         <div class="form-columns"><label>Discord username<input name="discord_username" value="{{ old('discord_username', $user->discord_username) }}"></label><label>Facebook URL<input type="url" name="facebook_url" value="{{ old('facebook_url', $user->facebook_url) }}"></label></div>

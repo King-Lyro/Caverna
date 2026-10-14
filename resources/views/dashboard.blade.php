@@ -10,7 +10,7 @@
 <div class="dashboard-stats">
     <article><span class="eyebrow">Crickets</span><strong>{{ number_format($crickets) }}</strong><small><a class="text-link" href="{{ route('crickets') }}">view ledger</a></small></article>
     <article><span class="eyebrow">Inventory</span><strong>{{ $inventoryCount }}</strong><small>items in hand</small></article>
-    <article><span class="eyebrow">Mate requests</span><strong>{{ $pendingMateRequests }}</strong><small>awaiting response</small></article>
+    <article><a class="dashboard-request-link" href="{{ route('dashboard') }}#breeding-requests"><span class="eyebrow">Breeding requests</span><strong>{{ $pendingMateRequests->count() + $breedingRequests->count() }}</strong><small>awaiting response</small></a></article>
 </div>
 
 <section class="dashboard-section">
@@ -40,12 +40,41 @@
 </section>
 @endif
 
+<section class="dashboard-section" id="breeding-requests">
+    <div class="section-heading"><div><p class="eyebrow">Breeding requests</p><h2>Requests awaiting a response.</h2></div></div>
+    @foreach ($breedingRequests as $breedingRequest)
+        <article class="dashboard-row">
+            <strong><a href="{{ route('characters.show', $breedingRequest->female) }}">{{ $breedingRequest->female->name }}</a> &amp; <a href="{{ route('characters.show', $breedingRequest->male) }}">{{ $breedingRequest->male->name }}</a></strong>
+            <span>Pregnancy · Requested by <x-member-link :member="$breedingRequest->requester" /></span>
+            @if ($breedingRequest->requested_by !== auth()->id())
+                <form method="POST" action="{{ route('breeding.accept', $breedingRequest) }}">@csrf @method('PATCH')<button class="text-link" type="submit">Accept</button></form>
+                <form method="POST" action="{{ route('breeding.reject', $breedingRequest) }}">@csrf @method('PATCH')<button class="text-link" type="submit">Decline</button></form>
+            @else
+                <span>Sent · Awaiting the other owner's response</span>
+            @endif
+        </article>
+    @endforeach
+    @foreach ($pendingMateRequests as $mateRequest)
+        <article class="dashboard-row">
+            <strong><a href="{{ route('characters.show', $mateRequest->fromCharacter) }}">{{ $mateRequest->fromCharacter->name }}</a> &amp; <a href="{{ route('characters.show', $mateRequest->toCharacter) }}">{{ $mateRequest->toCharacter->name }}</a></strong>
+            <span>Mate pairing · Requested by <x-member-link :member="$mateRequest->fromCharacter->user" /></span>
+            @if ($mateRequest->toCharacter->user_id === auth()->id())
+                <form method="POST" action="{{ route('characters.mate-accept', $mateRequest) }}">@csrf @method('PATCH')<button class="text-link" type="submit">Accept</button></form>
+                <form method="POST" action="{{ route('characters.mate-reject', $mateRequest) }}">@csrf @method('PATCH')<button class="text-link" type="submit">Decline</button></form>
+            @else
+                <span>Sent · Awaiting the other owner's response</span>
+            @endif
+        </article>
+    @endforeach
+    @if ($breedingRequests->isEmpty() && $pendingMateRequests->isEmpty())<p class="form-intro">No breeding requests are awaiting a response.</p>@endif
+</section>
+
 @if ($transferRequests->isNotEmpty())
-<section class="dashboard-section"><div class="section-heading"><div><p class="eyebrow">Character transfers</p><h2>Requests waiting for you.</h2></div></div>@foreach ($transferRequests as $transfer)<article class="dashboard-row"><strong>{{ $transfer->character->name }}</strong><span>From {{ $transfer->sender->name }}</span><form method="POST" action="{{ route('characters.transfer.accept', $transfer) }}">@csrf @method('PATCH')<button class="text-link" type="submit">Accept</button></form></article>@endforeach</section>
+<section class="dashboard-section"><div class="section-heading"><div><p class="eyebrow">Character transfers</p><h2>Requests waiting for you.</h2></div></div>@foreach ($transferRequests as $transfer)<article class="dashboard-row"><strong>{{ $transfer->character->name }}</strong><span>From <x-member-link :member="$transfer->sender" /></span><form method="POST" action="{{ route('characters.transfer.accept', $transfer) }}">@csrf @method('PATCH')<button class="text-link" type="submit">Accept</button></form></article>@endforeach</section>
 @endif
 
 @if ($mentorRequests->isNotEmpty())
-<section class="dashboard-section"><div class="section-heading"><div><p class="eyebrow">Mentor requests</p><h2>Apprentices awaiting your answer.</h2></div></div>@foreach ($mentorRequests as $relationship)<article class="dashboard-row"><strong>{{ $relationship->character->name }}</strong><span>Requests {{ $relationship->relatedCharacter->name }} as mentor</span><form method="POST" action="{{ route('characters.mentor-accept', $relationship) }}">@csrf @method('PATCH')<button class="text-link" type="submit">Accept</button></form></article>@endforeach</section>
+<section class="dashboard-section" id="mentor-requests"><div class="section-heading"><div><p class="eyebrow">Mentor requests</p><h2>Apprentices awaiting your answer.</h2></div></div>@foreach ($mentorRequests as $relationship)<article class="dashboard-row"><strong><a href="{{ route('characters.show', $relationship->character) }}">{{ $relationship->character->name }}</a></strong><span>Requests <a href="{{ route('characters.show', $relationship->relatedCharacter) }}">{{ $relationship->relatedCharacter->name }}</a> as mentor</span><form method="POST" action="{{ route('characters.mentor-accept', $relationship) }}">@csrf @method('PATCH')<button class="text-link" type="submit">Accept</button></form></article>@endforeach</section>
 @endif
 
 @if ($adoptionApplications->isNotEmpty())

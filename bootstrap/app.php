@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnsureAdmin;
 use App\Http\Middleware\EnsureStaff;
+use App\Http\Middleware\PreserveFormSubmission;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -20,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('cavernas:process-pregnancies')->dailyAt('00:00');
     })
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->web(append: [PreserveFormSubmission::class]);
         $middleware->alias([
             'staff' => EnsureStaff::class,
             'admin' => EnsureAdmin::class,
@@ -33,7 +35,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
             $status = $exception->getStatusCode();
             if ($status === 422 && ! $request->isMethod('GET')) {
-                return back()->withInput()->with('error', $exception->getMessage() ?: 'Please review your submission.');
+                return back()->withInput($request->except(['password', 'password_confirmation', 'current_password']))->with('error', $exception->getMessage() ?: 'Please review your submission.');
             }
 
             if (in_array($status, [403, 404, 422], true)) {

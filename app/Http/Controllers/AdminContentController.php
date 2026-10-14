@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\ForumBoard;
 use App\Models\ForumCategory;
 use App\Models\SidebarModule;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 class AdminContentController extends Controller
@@ -36,7 +38,7 @@ class AdminContentController extends Controller
 
     public function storeCategory(Request $request): RedirectResponse
     {
-        $validated = $request->validate(['name' => ['required', 'string', 'max:120'], 'description' => ['nullable', 'string', 'max:1000'], 'sort_order' => ['required', 'integer', 'min:0']]);
+        $validated = $request->validate(['name' => ['required', 'string', 'max:120'], 'description' => ['nullable', 'string', 'max:1000'], 'sort_order' => ['required', 'integer', 'min:0'], 'territory' => ['nullable', 'in:ThunderClan,RiverClan,ShadowClan,WindClan,outsider']]);
         ForumCategory::create($validated);
 
         return back()->with('status', 'Forum category created.');
@@ -44,7 +46,7 @@ class AdminContentController extends Controller
 
     public function updateCategory(Request $request, ForumCategory $category): RedirectResponse
     {
-        $category->update($request->validate(['name' => ['required', 'string', 'max:120'], 'description' => ['nullable', 'string', 'max:1000'], 'sort_order' => ['required', 'integer', 'min:0']]));
+        $category->update($request->validate(['name' => ['required', 'string', 'max:120'], 'description' => ['nullable', 'string', 'max:1000'], 'sort_order' => ['required', 'integer', 'min:0'], 'territory' => ['nullable', 'in:ThunderClan,RiverClan,ShadowClan,WindClan,outsider']]));
 
         return back()->with('status', 'Forum category updated.');
     }
@@ -56,6 +58,7 @@ class AdminContentController extends Controller
             'categories.*.name' => ['required', 'string', 'max:120'],
             'categories.*.description' => ['nullable', 'string', 'max:1000'],
             'categories.*.sort_order' => ['required', 'integer', 'min:0'],
+            'categories.*.territory' => ['nullable', 'in:ThunderClan,RiverClan,ShadowClan,WindClan,outsider'],
         ]);
         DB::transaction(function () use ($validated): void {
             foreach ($validated['categories'] as $id => $fields) {
@@ -103,14 +106,14 @@ class AdminContentController extends Controller
 
     public function storeModule(Request $request): RedirectResponse
     {
-        SidebarModule::create($request->validate(['title' => ['required', 'string', 'max:120'], 'body' => ['required', 'string', 'max:2000'], 'link_text' => ['nullable', 'string', 'max:80'], 'link_url' => ['nullable', 'string', 'max:255'], 'placement' => ['required', 'in:left,right'], 'sort_order' => ['required', 'integer', 'min:0'], 'is_enabled' => ['nullable', 'boolean']]) + ['is_enabled' => (bool) $request->boolean('is_enabled')]);
+        SidebarModule::create($request->validate(['title' => ['required', 'string', 'max:120'], 'body' => ['required', 'string', 'max:20000'], 'link_text' => ['nullable', 'string', 'max:80'], 'link_url' => ['nullable', 'string', 'max:255'], 'placement' => ['required', 'in:left,right'], 'sort_order' => ['required', 'integer', 'min:0'], 'is_enabled' => ['nullable', 'boolean']]) + ['is_enabled' => (bool) $request->boolean('is_enabled')]);
 
         return back()->with('status', 'Sidebar module created.');
     }
 
     public function updateModule(Request $request, SidebarModule $module): RedirectResponse
     {
-        $module->update($request->validate(['title' => ['required', 'string', 'max:120'], 'body' => ['required', 'string', 'max:2000'], 'link_text' => ['nullable', 'string', 'max:80'], 'link_url' => ['nullable', 'string', 'max:255'], 'placement' => ['required', 'in:left,right'], 'sort_order' => ['required', 'integer', 'min:0'], 'is_enabled' => ['nullable', 'boolean']]) + ['is_enabled' => (bool) $request->boolean('is_enabled')]);
+        $module->update($request->validate(['title' => ['required', 'string', 'max:120'], 'body' => ['required', 'string', 'max:20000'], 'link_text' => ['nullable', 'string', 'max:80'], 'link_url' => ['nullable', 'string', 'max:255'], 'placement' => ['required', 'in:left,right'], 'sort_order' => ['required', 'integer', 'min:0'], 'is_enabled' => ['nullable', 'boolean']]) + ['is_enabled' => (bool) $request->boolean('is_enabled')]);
 
         return back()->with('status', 'Sidebar module updated.');
     }
@@ -120,7 +123,7 @@ class AdminContentController extends Controller
         $validated = $request->validate([
             'modules' => ['required', 'array'],
             'modules.*.title' => ['required', 'string', 'max:120'],
-            'modules.*.body' => ['required', 'string', 'max:2000'],
+            'modules.*.body' => ['required', 'string', 'max:20000'],
             'modules.*.link_text' => ['nullable', 'string', 'max:80'],
             'modules.*.link_url' => ['nullable', 'string', 'max:255'],
             'modules.*.placement' => ['required', 'in:left,right'],
@@ -134,5 +137,14 @@ class AdminContentController extends Controller
         });
 
         return back()->with('status', 'Sidebar modules updated.');
+    }
+
+    public function uploadModuleImage(Request $request): JsonResponse
+    {
+        $validated = $request->validate(['image' => ['required', 'file', 'mimes:jpg,jpeg,png,gif,webp', 'max:5120']]);
+        $path = Storage::disk('public')->putFile('sidebar', $validated['image']);
+        abort_unless(is_string($path), 500, 'The sidebar image could not be saved.');
+
+        return response()->json(['url' => Storage::disk('public')->url($path)]);
     }
 }

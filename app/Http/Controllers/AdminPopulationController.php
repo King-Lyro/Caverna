@@ -14,7 +14,7 @@ class AdminPopulationController extends Controller
         $counts = array_replace(array_fill_keys($clans, 0), CavernasRules::clanPopulationCounts());
         $population = Character::query()->whereIn('allegiance', [...$clans, 'outsider', 'Kittypet', 'Loner', 'Rogue'])->whereIn('status', ['active', 'inactive'])
             ->selectRaw('allegiance, sex, role, count(*) as population')->groupBy('allegiance', 'sex', 'role')->get();
-        $clanStats = $population->whereIn('allegiance', $clans)->whereIn('role', ['warrior', 'apprentice'])->groupBy('allegiance');
+        $clanStats = $population->whereIn('allegiance', $clans)->groupBy('allegiance');
         $outsiderStats = $population->whereIn('allegiance', ['outsider', 'Kittypet', 'Loner', 'Rogue']);
         $creationAllowed = collect($clans)->mapWithKeys(fn (string $clan) => [$clan => CavernasRules::clanCreationAllowed($clan)]);
 

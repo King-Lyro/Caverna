@@ -11,19 +11,21 @@ class MapForumSeeder extends Seeder
 {
     public function run(): void
     {
-        $categories = [
-            'camp' => ForumCategory::firstOrCreate(['name' => 'Clan camps'], ['description' => 'The four clan homes on the territory map.', 'sort_order' => 3]),
-            'landmark' => ForumCategory::firstOrCreate(['name' => 'Territory landmarks'], ['description' => 'Rivers, forests, paths, and other places to write.', 'sort_order' => 4]),
-        ];
-
         foreach (TerritoryMap::locations() as $index => $location) {
-            ForumBoard::firstOrCreate(['slug' => $location['slug']], [
-                'forum_category_id' => $categories[$location['category']]->id,
+            $category = ForumCategory::firstOrCreate(
+                ['name' => $location['territory'].' Territory'],
+                ['description' => 'Role-play locations in '.$location['territory'].'.', 'sort_order' => 3, 'territory' => $location['territory']],
+            );
+            $board = ForumBoard::firstOrCreate(['slug' => $location['slug']], [
+                'forum_category_id' => $category->id,
                 'name' => $location['name'],
                 'description' => 'Role-play at '.$location['name'].'.',
                 'is_ic' => true,
                 'sort_order' => $index,
             ]);
+            if ($board->forum_category_id !== $category->id) {
+                $board->update(['forum_category_id' => $category->id]);
+            }
         }
     }
 }

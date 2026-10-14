@@ -11,7 +11,7 @@ class ForumThread extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['forum_board_id', 'user_id', 'title', 'slug', 'is_pinned', 'is_locked'];
+    protected $fillable = ['forum_board_id', 'user_id', 'guest_name', 'title', 'slug', 'is_pinned', 'is_locked'];
 
     protected function casts(): array
     {

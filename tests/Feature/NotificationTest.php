@@ -11,6 +11,19 @@ class NotificationTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_legacy_mating_notifications_open_the_decision_section(): void
+    {
+        $member = User::factory()->create(['status' => 'approved']);
+        $member->notify(new \App\Notifications\SiteNotification([
+            'title' => 'Mating request', 'message' => 'You received a mating request.',
+            'url' => route('characters'),
+        ]));
+        $notification = $member->notifications()->firstOrFail();
+        $this->actingAs($member)->get(route('notifications'))->assertOk()
+            ->assertSee('Breeding request')->assertDontSee('Mating request')->assertSee('Open update');
+        $this->patch(route('notifications.read', $notification->id))
+            ->assertRedirect(route('dashboard').'#breeding-requests');
+    }
     public function test_member_can_view_and_mark_notifications_read(): void
     {
         $user = User::factory()->create(['status' => 'approved']);

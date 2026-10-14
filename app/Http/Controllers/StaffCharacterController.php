@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AuditLog;
 use App\Models\Character;
 use App\Models\CharacterRelationship;
+use App\Models\Pregnancy;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -25,7 +26,8 @@ class StaffCharacterController extends Controller
         $this->ensureAdmin($request);
 
         $medicineCats = $character->role === 'medicine_cat_apprentice'
-            ? Character::where('role', 'medicine_cat')->where('allegiance', $character->allegiance)->where('status', 'active')->where('is_frozen', false)->orderBy('name')->get()
+            ? Character::where('role', 'medicine_cat')->where('allegiance', $character->allegiance)->where('status', 'active')->where('is_frozen', false)
+                ->whereNotIn('id', Pregnancy::where('status', 'pregnant')->select('female_character_id'))->orderBy('name')->get()
             : collect();
 
         return view('staff.character-edit', compact('character', 'medicineCats'));
@@ -86,11 +88,12 @@ class StaffCharacterController extends Controller
     {
         $this->ensureAdmin($request);
         $validated = $request->validate(['mentor_id' => ['required', 'integer', 'exists:characters,id']]);
-        $mentor = Character::findOrFail($validated['mentor_id']);
-        abort_unless($character->role === 'medicine_cat_apprentice' && $character->status === 'active' && ! $character->is_frozen, 422, 'Choose an active medicine cat apprentice.');
-        abort_unless($mentor->role === 'medicine_cat' && $mentor->allegiance === $character->allegiance && $mentor->status === 'active' && ! $mentor->is_frozen, 422, 'Choose an active medicine cat from the same Clan.');
-
-        DB::transaction(function () use ($character, $mentor, $request): void {
+        DB::transaction(function () use ($character, $validated, $request): void {
+            $character = Character::whereKey($character->id)->lockForUpdate()->firstOrFail();
+            $mentor = Character::whereKey($validated['mentor_id'])->lockForUpdate()->firstOrFail();
+            abort_unless($character->role === 'medicine_cat_apprentice' && $character->status === 'active' && ! $character->is_frozen, 422, 'Choose an active medicine cat apprentice.');
+            abort_unless($mentor->role === 'medicine_cat' && $mentor->allegiance === $character->allegiance && $mentor->status === 'active' && ! $mentor->is_frozen, 422, 'Choose an active medicine cat from the same Clan.');
+            abort_if($mentor->sex === 'female' && Pregnancy::where('female_character_id', $mentor->id)->where('status', 'pregnant')->exists(), 422, 'A pregnant female cannot take an apprentice.');
             CharacterRelationship::where('character_id', $character->id)->where('type', 'mentor')->delete();
             CharacterRelationship::create(['character_id' => $character->id, 'related_character_id' => $mentor->id, 'type' => 'mentor', 'status' => 'accepted', 'requested_by' => $request->user()->id, 'accepted_at' => now()]);
             AuditLog::create(['user_id' => $request->user()->id, 'action' => 'character.mentor_assigned', 'auditable_type' => Character::class, 'auditable_id' => $character->id, 'changes' => ['mentor_id' => $mentor->id], 'ip_address' => $request->ip()]);

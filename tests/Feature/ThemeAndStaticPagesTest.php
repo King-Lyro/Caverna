@@ -16,6 +16,7 @@ use Database\Seeders\MapForumSeeder;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -55,15 +56,19 @@ class ThemeAndStaticPagesTest extends TestCase
         $this->assertFileExists(public_path('images/map.png'));
 
         $map = $this->get(route('content.page', 'map'))->assertOk()
-            ->assertSee('map-content')->assertSee('Clan camps')->assertSee('Territory landmarks')
+            ->assertSee('map-content')->assertSee('ThunderClan Territory')->assertSee('RiverClan Territory')
             ->assertSee('usemap="#territory-map"', false)->assertSee('<map name="territory-map">', false);
         foreach (TerritoryMap::locations() as $location) {
             $map->assertSee(route('forum.board', $location['slug']));
             $this->assertDatabaseHas('forum_boards', ['slug' => $location['slug'], 'is_ic' => true]);
         }
-        $this->assertSame(4, ForumCategory::where('name', 'Clan camps')->firstOrFail()->boards()->count());
-        $this->assertSame(count(TerritoryMap::locations()) - 4, ForumCategory::where('name', 'Territory landmarks')->firstOrFail()->boards()->count());
-        $this->assertSame(count(TerritoryMap::locations()), ForumBoard::count());
+        foreach (collect(TerritoryMap::locations())->pluck('territory')->unique() as $territory) {
+            $this->assertSame(
+                collect(TerritoryMap::locations())->where('territory', $territory)->count(),
+                ForumCategory::where('name', $territory.' Territory')->firstOrFail()->boards()->count(),
+            );
+        }
+        $this->assertSame(count(TerritoryMap::locations()) + 1, ForumBoard::count());
         $this->get(route('forum.board', 'thunderclan-camp'))->assertOk()->assertSee('ThunderClan Camp');
     }
 
@@ -328,9 +333,44 @@ class ThemeAndStaticPagesTest extends TestCase
         $this->get(route('forum'))->assertOk()->assertSee('class="is-active"', false);
     }
 
-    public function test_theme_selection_is_stored_in_session(): void
+    public function test_admin_theme_selection_is_stored_globally(): void
     {
-        $this->withSession(['theme' => 'spring'])->post(route('theme.update', 'winter'))->assertRedirect()->assertSessionHas('theme', 'winter');
+        $admin = User::factory()->create(['role' => 'admin', 'status' => 'approved']);
+        $this->actingAs($admin)->post(route('theme.update', 'winter'))->assertRedirect();
+        $this->assertDatabaseHas('site_settings', ['key' => 'theme', 'value' => 'winter']);
+        $this->get(route('home'))->assertOk()->assertSee('theme-winter', false);
+    }
+
+    public function test_fall_is_the_default_theme(): void
+    {
+        $this->assertDatabaseHas('site_settings', ['key' => 'theme', 'value' => 'fall']);
+        $this->get(route('home'))->assertOk()->assertSee('theme-fall', false);
+    }
+
+    public function test_river_theme_is_removed_and_existing_selection_returns_to_fall(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'status' => 'approved']);
+        $this->assertSame(['spring', 'summer', 'fall', 'winter'], array_keys(trans('site.themes')));
+        $this->actingAs($admin)->get(route('home'))->assertOk()->assertDontSee('<option value="river"', false);
+        $this->post(route('theme.update', 'river'))->assertNotFound();
+        DB::table('site_settings')->where('key', 'theme')->update(['value' => 'river']);
+        \Illuminate\Support\Facades\Cache::forget('site_theme');
+        $this->get(route('home'))->assertOk()->assertSee('theme-fall', false);
+        (require database_path('migrations/2026_10_15_000005_remove_river_theme.php'))->up();
+        $this->assertDatabaseHas('site_settings', ['key' => 'theme', 'value' => 'fall']);
+    }
+
+    public function test_upgrade_switches_the_previous_fall_default_and_clears_theme_cache(): void
+    {
+        DB::table('site_settings')->where('key', 'theme')->update(['value' => 'fall']);
+        $this->get(route('home'))->assertOk()->assertSee('theme-fall', false);
+
+        (require database_path('migrations/2026_10_15_000001_set_spring_as_default_theme.php'))->up();
+
+        $this->assertDatabaseHas('site_settings', ['key' => 'theme', 'value' => 'spring']);
+        $this->get(route('home'))->assertOk()->assertSee('theme-spring', false);
+        (require database_path('migrations/2026_10_15_000002_restore_fall_default_theme.php'))->up();
+        $this->get(route('home'))->assertOk()->assertSee('theme-fall', false);
     }
 
     public function test_navigation_groups_public_and_member_links_without_hiding_destinations(): void

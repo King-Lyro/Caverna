@@ -9,6 +9,8 @@ use App\Models\WorldPage;
 use App\Support\CavernasRules;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\View;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -26,6 +28,15 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        View::composer(['layouts.cavernas', 'layouts.staff'], function ($view): void {
+            $theme = Schema::hasTable('site_settings')
+                ? Cache::rememberForever('site_theme', fn () => Schema::hasTable('site_settings')
+                    ? (string) (DB::table('site_settings')->where('key', 'theme')->value('value') ?: 'fall')
+                    : 'fall')
+                : 'fall';
+            $view->with('siteTheme', array_key_exists($theme, trans('site.themes')) ? $theme : 'fall');
+        });
+
         View::composer('layouts.cavernas', function ($view): void {
             $modules = Schema::hasTable('sidebar_modules')
                 ? SidebarModule::query()->where('is_enabled', true)->orderBy('placement')->orderBy('sort_order')->get()

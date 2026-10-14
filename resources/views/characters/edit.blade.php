@@ -12,8 +12,8 @@
 <label>Image URLs or saved images <small>One per line</small><textarea name="image_urls" rows="3">{{ old('image_urls', implode("\n", $character->images ?? [])) }}</textarea></label>
 <label>Forum avatar <small>Optional replacement for the IC portrait.</small><input type="file" name="forum_avatar" accept="image/jpeg,image/png,image/webp"></label>
 @if ($availableEnhancements->isNotEmpty())<fieldset class="character-enhancements"><legend>Apply purchased enhancements</legend>@foreach ($availableEnhancements as $inventory)<label class="checkbox-label"><input type="checkbox" name="enhancements[]" value="{{ $inventory->id }}" @checked(in_array($inventory->id, old('enhancements', [])))>@if ($inventory->item->iconUrl())<img src="{{ $inventory->item->iconUrl() }}" alt="">@endif{{ $inventory->item->name }} <small>({{ $inventory->quantity }} available)</small></label>@endforeach</fieldset>@endif
-<label>Appearance <small>At least 250 words.</small><textarea name="appearance" rows="8" required>{{ old('appearance', $character->appearance) }}</textarea></label>
-<label>Personality <small>At least 250 words.</small><textarea name="personality" rows="8" required>{{ old('personality', $character->personality) }}</textarea></label>
-<label>History <small>At least 250 words.</small><textarea name="history" rows="8" required>{{ old('history', $character->history) }}</textarea></label>
+<label>Appearance <small>At least 100 words.</small></label><textarea name="appearance" rows="8" required>{{ old('appearance', $character->appearance) }}</textarea><div data-rich-editor data-editor-target="appearance" aria-label="Character appearance editor"></div>
+<label>Personality <small>At least 100 words.</small></label><textarea name="personality" rows="8" required>{{ old('personality', $character->personality) }}</textarea><div data-rich-editor data-editor-target="personality" aria-label="Character personality editor"></div>
+<label>History <small>At least 100 words.</small></label><textarea name="history" rows="8" required>{{ old('history', $character->history) }}</textarea><div data-rich-editor data-editor-target="history" aria-label="Character history editor"></div>
 <button class="button button-primary" type="submit">Save character</button></form></section>
 @endsection

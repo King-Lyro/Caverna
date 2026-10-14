@@ -24,6 +24,7 @@ class AuthController extends Controller
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'confirmed', 'min:8'],
             'roleplay_sample' => ['required', 'string', 'min:70', 'max:5000'],
+            'age_confirmed' => ['accepted'],
         ]);
 
         User::create([
@@ -32,6 +33,7 @@ class AuthController extends Controller
             'password' => Hash::make($validated['password']),
             'roleplay_sample' => $validated['roleplay_sample'],
             'status' => 'pending',
+            'age_confirmed_at' => now(),
         ]);
 
         return redirect()->route('login')->with('status', 'Your application is ready for staff review.');
@@ -97,7 +99,7 @@ class AuthController extends Controller
             return back()->withErrors(['email' => 'Your application is still awaiting staff approval.']);
         }
 
-        return redirect()->intended('/dashboard');
+        return redirect()->intended(route('dashboard'));
     }
 
     public function logout(Request $request): RedirectResponse
@@ -106,6 +108,6 @@ class AuthController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect('/');
+        return redirect()->route('home');
     }
 }

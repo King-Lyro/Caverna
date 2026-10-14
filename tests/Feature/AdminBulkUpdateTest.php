@@ -13,6 +13,8 @@ use App\Models\RuleCategory;
 use App\Models\SidebarModule;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class AdminBulkUpdateTest extends TestCase
@@ -31,11 +33,11 @@ class AdminBulkUpdateTest extends TestCase
             $this->assertSame(1, substr_count($response->getContent(), '>Save changes<'));
         }
 
-        $this->actingAs($admin)->patch(route('admin.content.categories.bulk-update'), ['categories' => [$category->id => ['name' => 'New category', 'description' => 'Updated', 'sort_order' => 2]]])->assertRedirect();
+        $this->actingAs($admin)->patch(route('admin.content.categories.bulk-update'), ['categories' => [$category->id => ['name' => 'New category', 'description' => 'Updated', 'sort_order' => 2, 'territory' => 'RiverClan']]])->assertRedirect();
         $this->actingAs($admin)->patch(route('admin.content.boards.bulk-update'), ['boards' => [$board->id => ['forum_category_id' => $category->id, 'name' => 'New board', 'description' => 'Updated', 'sort_order' => 3, 'is_ic' => 1]]])->assertRedirect();
         $this->actingAs($admin)->patch(route('admin.content.modules.bulk-update'), ['modules' => [$module->id => ['title' => 'New module', 'body' => 'New copy', 'link_text' => null, 'link_url' => null, 'placement' => 'right', 'sort_order' => 4, 'is_enabled' => 0]]])->assertRedirect();
 
-        $this->assertDatabaseHas('forum_categories', ['id' => $category->id, 'name' => 'New category']);
+        $this->assertDatabaseHas('forum_categories', ['id' => $category->id, 'name' => 'New category', 'territory' => 'RiverClan']);
         $this->assertDatabaseHas('forum_boards', ['id' => $board->id, 'name' => 'New board', 'is_ic' => 1]);
         $this->assertDatabaseHas('sidebar_modules', ['id' => $module->id, 'title' => 'New module', 'is_enabled' => 0]);
     }
@@ -93,6 +95,19 @@ class AdminBulkUpdateTest extends TestCase
 
         $this->assertDatabaseHas('litter_kits', ['id' => $kit->id, 'status' => 'deceased', 'has_disability' => 1]);
         $this->assertDatabaseHas('moderation_reports', ['id' => $report->id, 'status' => 'resolved', 'reviewed_by' => $staff->id]);
+    }
+
+    public function test_admin_can_upload_sidebar_module_images(): void
+    {
+        Storage::fake('public');
+        $admin = $this->admin();
+
+        $response = $this->actingAs($admin)->post(route('admin.content.module-images.store'), [
+            'image' => UploadedFile::fake()->image('module.webp'),
+        ]);
+
+        $response->assertOk()->assertJsonStructure(['url']);
+        Storage::disk('public')->assertExists('sidebar/'.basename($response->json('url')));
     }
 
     private function admin(): User

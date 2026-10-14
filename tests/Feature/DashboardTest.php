@@ -14,7 +14,8 @@ class DashboardTest extends TestCase
     {
         $user = User::factory()->create(['status' => 'approved']);
 
-        $this->actingAs($user)->get(route('dashboard'))->assertOk()->assertSee($user->name);
+        $this->actingAs($user)->get(route('dashboard'))->assertOk()->assertSee($user->name)
+            ->assertSee('<h1>Welcome back,<br><em>'.e($user->name).'.</em></h1>', false);
     }
 
     public function test_pending_members_cannot_view_the_dashboard(): void

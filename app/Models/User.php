@@ -77,6 +77,7 @@ class User extends Authenticatable
         'hide_personal_info',
         'hide_current_page',
         'is_absent',
+        'age_confirmed_at',
     ];
 
     /**
@@ -103,6 +104,7 @@ class User extends Authenticatable
             'hide_current_page' => 'boolean',
             'is_absent' => 'boolean',
             'password' => 'hashed',
+            'age_confirmed_at' => 'datetime',
         ];
     }
 }

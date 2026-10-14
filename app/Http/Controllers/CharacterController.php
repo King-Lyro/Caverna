@@ -12,6 +12,7 @@ use App\Models\ForumPost;
 use App\Models\Inventory;
 use App\Models\MateRequest;
 use App\Models\Pregnancy;
+use App\Notifications\SiteNotification;
 use App\Services\CharacterEnhancementService;
 use App\Support\CavernasRules;
 use Illuminate\Http\RedirectResponse;
@@ -26,13 +27,16 @@ class CharacterController extends Controller
     public function index(Request $request): View
     {
         $search = trim((string) $request->query('search', ''));
+        $clans = ['ThunderClan', 'RiverClan', 'ShadowClan', 'WindClan'];
+        $populationCounts = array_replace(array_fill_keys($clans, 0), CavernasRules::clanPopulationCounts());
+        $populationSexCounts = CavernasRules::clanPopulationBreakdown();
         $characters = Character::query()->with('user')->whereIn('status', ['active', 'inactive'])->when($search !== '', function ($query) use ($search) {
             $query->where(function ($nested) use ($search) {
                 $nested->where('name', 'like', '%'.$search.'%')->orWhere('allegiance', 'like', '%'.$search.'%')->orWhereHas('user', fn ($user) => $user->where('name', 'like', '%'.$search.'%'));
             });
         })->latest()->paginate(24)->withQueryString();
 
-        return view('characters.index', compact('characters', 'search'));
+        return view('characters.index', compact('characters', 'search', 'clans', 'populationCounts', 'populationSexCounts'));
     }
 
     public function create(Request $request): View|RedirectResponse
@@ -159,8 +163,10 @@ class CharacterController extends Controller
         ]);
         $this->validateWriting($validated);
         [$imageUrls, $imageFiles] = $this->profileImages($request, $character);
-        if ($request->has('disability')) {
+        if ($request->filled('disability')) {
             $validated['disability'] = $request->validate(['disability' => ['required', 'string', 'max:255']])['disability'];
+        } elseif ($request->exists('disability')) {
+            $validated['disability'] = null;
         }
 
         DB::transaction(function () use ($character, $request, $validated, $imageUrls, $imageFiles): void {
@@ -251,8 +257,8 @@ class CharacterController extends Controller
             throw ValidationException::withMessages(['looks' => 'Looks must be 15 words or fewer.']);
         }
         foreach (['appearance', 'personality', 'history'] as $field) {
-            if (str_word_count($validated[$field]) < 250) {
-                throw ValidationException::withMessages([$field => ucfirst($field).' must be at least 250 words.']);
+            if (str_word_count($validated[$field]) < 100) {
+                throw ValidationException::withMessages([$field => ucfirst($field).' must be at least 100 words.']);
             }
         }
     }
@@ -295,7 +301,8 @@ class CharacterController extends Controller
             $query->select('character_id')->from('character_relationships')->whereIn('related_character_id', $parentIds)->where('type', 'parent')->where('status', 'accepted');
         })->where('id', '!=', $character->id)->orderBy('name')->get();
         $ownershipHistory = AuditLog::query()->where('auditable_type', Character::class)->where('auditable_id', $character->id)->whereIn('action', ['character.purchased', 'character.transferred'])->with('actor')->latest()->take(5)->get();
-        $eligibleApprentices = auth()->user()?->characters()->where('role', 'apprentice')->where('status', 'active')->where('is_frozen', false)->orderBy('name')->get() ?? collect();
+        $eligibleApprentices = auth()->user()?->characters()->where('role', 'apprentice')->where('allegiance', $character->allegiance)
+            ->where('status', 'active')->where('is_frozen', false)->whereDoesntHave('mentors')->orderBy('name')->get() ?? collect();
 
         return view('characters.show', [
             'character' => $character,
@@ -334,14 +341,21 @@ class CharacterController extends Controller
         DB::transaction(function () use ($from, $character, $request) {
             $cost = $this->mateCost($from);
             $balance = (int) DB::table('cricket_ledger')->where('user_id', $request->user()->id)->sum('amount');
-            abort_if($balance < $cost, 422, 'You do not have enough crickets for this mate request.');
+            abort_if($balance < $cost, 422, 'You do not have enough crickets for this breeding request.');
             if ($cost > 0) {
-                DB::table('cricket_ledger')->insert(['user_id' => $request->user()->id, 'amount' => -$cost, 'type' => 'mate_request', 'description' => 'Mate request for '.$from->name, 'created_at' => now(), 'updated_at' => now()]);
+                DB::table('cricket_ledger')->insert(['user_id' => $request->user()->id, 'amount' => -$cost, 'type' => 'mate_request', 'description' => 'Breeding request for '.$from->name, 'created_at' => now(), 'updated_at' => now()]);
             }
-            MateRequest::create(['from_character_id' => $from->id, 'to_character_id' => $character->id]);
+            $mateRequest = MateRequest::create(['from_character_id' => $from->id, 'to_character_id' => $character->id]);
+            $character->user->notify(new SiteNotification([
+                'title' => 'Breeding request',
+                'message' => $from->name.' requested '.$character->name.' as a mate. Review the request on your dashboard.',
+                'character_id' => $character->id,
+                'url' => route('dashboard').'#breeding-requests',
+                'mate_request_id' => $mateRequest->id,
+            ]));
         });
 
-        return back()->with('status', 'Mate request sent.');
+        return back()->with('status', 'Breeding request sent.');
     }
 
     public function acceptMate(MateRequest $mateRequest, Request $request): RedirectResponse
@@ -358,8 +372,29 @@ class CharacterController extends Controller
         $to->mates()->syncWithoutDetaching([$from->id => ['accepted_at' => $acceptedAt]]);
         $from->update(['mate' => $to->name]);
         $to->update(['mate' => $from->name]);
+        $from->user->notify(new SiteNotification([
+            'title' => 'Breeding request accepted',
+            'message' => $to->name.' accepted '.$from->name.' as a mate.',
+            'character_id' => $from->id,
+            'url' => route('dashboard').'#breeding-requests',
+        ]));
 
         return back()->with('status', 'The characters are now mates.');
+    }
+
+    public function rejectMate(MateRequest $mateRequest, Request $request): RedirectResponse
+    {
+        $this->ensureApproved($request);
+        abort_unless($mateRequest->toCharacter->user_id === $request->user()->id, 403);
+        $updated = MateRequest::whereKey($mateRequest->id)->where('status', 'pending')->update(['status' => 'rejected']);
+        abort_unless($updated, 422, 'This breeding request is no longer pending.');
+        $mateRequest->fromCharacter->user->notify(new SiteNotification([
+            'title' => 'Breeding request declined',
+            'message' => $mateRequest->toCharacter->name.' declined the mate pairing request from '.$mateRequest->fromCharacter->name.'.',
+            'url' => route('dashboard').'#breeding-requests',
+        ]));
+
+        return back()->with('status', 'Breeding request declined.');
     }
 
     public function requestMentor(Character $character, Request $request): RedirectResponse
@@ -367,14 +402,16 @@ class CharacterController extends Controller
         $this->ensureApproved($request);
         $character = Character::query()->findOrFail($character->getKey());
         $apprentice = Character::whereKey($request->integer('apprentice_character_id'))->where('user_id', $request->user()->id)->firstOrFail();
-        abort_unless($apprentice->role === 'apprentice', 422, 'Only apprentices can request a mentor.');
-        abort_if($apprentice->status !== 'active' || $apprentice->is_frozen, 422, 'Only active, unfrozen apprentices may request a mentor.');
-        $mentorRole = strtolower(trim((string) $character->getAttribute('role')));
-        abort_unless(in_array($mentorRole, ['warrior', 'leader', 'deputy'], true), 422, 'This character cannot mentor apprentices. Medicine cat apprentices can only be assigned by staff.');
-        abort_if((string) $character->getAttribute('status') !== 'active' || (bool) $character->getAttribute('is_frozen'), 422, 'This mentor is unavailable.');
+        $this->ensureMentorshipEligibility($apprentice, $character);
         abort_if(CharacterRelationship::where(['character_id' => $apprentice->id, 'related_character_id' => $character->id, 'type' => 'mentor', 'status' => 'pending'])->exists(), 422, 'A mentor request is already waiting.');
 
-        CharacterRelationship::create(['character_id' => $apprentice->id, 'related_character_id' => $character->id, 'type' => 'mentor', 'status' => 'pending', 'requested_by' => $request->user()->id]);
+        $relationship = CharacterRelationship::create(['character_id' => $apprentice->id, 'related_character_id' => $character->id, 'type' => 'mentor', 'status' => 'pending', 'requested_by' => $request->user()->id]);
+        $character->user->notify(new SiteNotification([
+            'title' => 'Mentor request',
+            'message' => $apprentice->name.' requests '.$character->name.' as a mentor.',
+            'url' => route('dashboard').'#mentor-requests',
+            'mentor_request_id' => $relationship->id,
+        ]));
 
         return back()->with('status', 'Mentor request sent.');
     }
@@ -384,10 +421,34 @@ class CharacterController extends Controller
         $this->ensureApproved($request);
         abort_unless($relationship->type === 'mentor' && $relationship->status === 'pending', 422, 'This mentor request is no longer active.');
         abort_unless($relationship->relatedCharacter->user_id === $request->user()->id, 403);
-        abort_if($relationship->character->status !== 'active' || $relationship->character->is_frozen || $relationship->relatedCharacter->status !== 'active' || $relationship->relatedCharacter->is_frozen, 422, 'Both mentor and apprentice must be active and unfrozen.');
-        $relationship->update(['status' => 'accepted', 'accepted_at' => now()]);
+        DB::transaction(function () use ($relationship, $request): void {
+            $lockedRelationship = CharacterRelationship::whereKey($relationship->id)->lockForUpdate()->firstOrFail();
+            abort_unless($lockedRelationship->status === 'pending', 422, 'This mentor request is no longer active.');
+            $apprentice = Character::whereKey($lockedRelationship->character_id)->lockForUpdate()->firstOrFail();
+            $mentor = Character::whereKey($lockedRelationship->related_character_id)->lockForUpdate()->firstOrFail();
+            abort_unless($mentor->user_id === $request->user()->id, 403);
+            $this->ensureMentorshipEligibility($apprentice, $mentor);
+            $lockedRelationship->update(['status' => 'accepted', 'accepted_at' => now()]);
+            $apprentice->user->notify(new SiteNotification([
+                'title' => 'Mentor request accepted',
+                'message' => $mentor->name.' is now mentoring '.$apprentice->name.'.',
+                'url' => route('characters.show', $apprentice),
+            ]));
+        });
 
         return back()->with('status', 'Mentor relationship accepted.');
+    }
+
+    private function ensureMentorshipEligibility(Character $apprentice, Character $mentor): void
+    {
+        abort_unless($apprentice->role === 'apprentice', 422, 'Only apprentices can request a mentor.');
+        abort_if($apprentice->status !== 'active' || $apprentice->is_frozen, 422, 'Only active, unfrozen apprentices may request a mentor.');
+        abort_unless(in_array($mentor->role, ['warrior', 'leader', 'deputy'], true), 422, 'This character cannot mentor apprentices. Medicine cat apprentices can only be assigned by staff.');
+        abort_if($mentor->status !== 'active' || $mentor->is_frozen, 422, 'This mentor is unavailable.');
+        abort_if($apprentice->user_id === $mentor->user_id, 422, 'Choose a mentor owned by another member.');
+        abort_unless($apprentice->allegiance === $mentor->allegiance, 422, 'Mentor and apprentice must share the same allegiance.');
+        abort_if($apprentice->mentors()->exists(), 422, 'This apprentice already has a mentor.');
+        abort_if($mentor->sex === 'female' && Pregnancy::where('female_character_id', $mentor->id)->where('status', 'pregnant')->exists(), 422, 'A pregnant female cannot take an apprentice.');
     }
 
     private function mateCost(Character $character): int

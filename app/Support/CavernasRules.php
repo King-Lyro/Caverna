@@ -32,11 +32,26 @@ final class CavernasRules
     {
         return Character::query()
             ->whereIn('allegiance', ['ThunderClan', 'RiverClan', 'ShadowClan', 'WindClan'])
-            ->whereIn('role', ['warrior', 'apprentice'])
             ->whereIn('status', ['active', 'inactive'])
             ->selectRaw('allegiance, count(*) as population')
             ->groupBy('allegiance')
             ->pluck('population', 'allegiance')
+            ->all();
+    }
+
+    public static function clanPopulationBreakdown(): array
+    {
+        return Character::query()
+            ->whereIn('allegiance', ['ThunderClan', 'RiverClan', 'ShadowClan', 'WindClan'])
+            ->whereIn('status', ['active', 'inactive'])
+            ->selectRaw('allegiance, sex, count(*) as population')
+            ->groupBy('allegiance', 'sex')
+            ->get()
+            ->groupBy('allegiance')
+            ->map(fn ($rows) => [
+                'female' => (int) $rows->where('sex', 'female')->sum('population'),
+                'male' => (int) $rows->where('sex', 'male')->sum('population'),
+            ])
             ->all();
     }
 

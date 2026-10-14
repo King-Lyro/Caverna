@@ -9,7 +9,7 @@
 		@forelse ($characters as $character)
 			<article class="memorial-row">
 				<a class="memorial-identity" href="{{ route('characters.show', $character) }}">@php($portrait = $character->images[0] ?? $character->forum_avatar_path ?? $character->avatar_path)@if ($portrait)<img src="{{ filter_var($portrait, FILTER_VALIDATE_URL) ? $portrait : asset('storage/'.$portrait) }}" alt="{{ $character->name }} portrait">@else<span class="directory-avatar">{{ strtoupper(substr($character->name, 0, 1)) }}</span>@endif<span><strong>{{ $character->name }}</strong><small>{{ $character->allegiance }} · {{ ucfirst(str_replace('_', ' ', $character->role)) }}</small></span></a>
-				<div><span class="eyebrow">Player</span><strong>{{ $character->user->name }}</strong></div>
+				<div><span class="eyebrow">Player</span><strong><x-member-link :member="$character->user" /></strong></div>
 				<div><span class="eyebrow">Remembered</span><time @if ($character->died_at) datetime="{{ $character->died_at->toDateString() }}" @endif>{{ $character->died_at?->format('M j, Y') ?? 'Date unknown' }}</time></div>
 			</article>
 		@empty

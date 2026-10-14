@@ -22,8 +22,8 @@
             <div class="map-artwork-missing"><strong>Map artwork is being prepared.</strong><p>The territory forums are available below.</p></div>
         @endif
         <div class="map-directory">
-            @foreach (['camp' => 'Clan camps', 'landmark' => 'Territory landmarks'] as $group => $label)
-                <section><h3>{{ $label }}</h3><ul>@foreach ($locations as $location)@if ($location['category'] === $group)<li><a href="{{ route('forum.board', $location['slug']) }}">{{ $location['name'] }} <span aria-hidden="true">&rarr;</span></a></li>@endif @endforeach</ul></section>
+            @foreach (collect($locations)->pluck('territory')->unique()->sort() as $territory)
+                <section><h3>{{ $territory === 'outsider' ? 'Outsider Territory' : $territory.' Territory' }}</h3><ul>@foreach ($locations as $location)@if ($location['territory'] === $territory)<li><a href="{{ route('forum.board', $location['slug']) }}">{{ $location['name'] }} <span aria-hidden="true">&rarr;</span></a></li>@endif @endforeach</ul></section>
             @endforeach
         </div>
     </div>

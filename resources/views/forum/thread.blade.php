@@ -4,7 +4,7 @@
 <section class="page-heading page-heading-theme compact-heading thread-page-heading">
     <p class="eyebrow">{{ $thread->board->category->name }} <span aria-hidden="true">·</span> {{ $thread->board->name }}</p>
     <h1>{{ $thread->title }}</h1>
-    <p>Started by {{ $thread->author->name }} · {{ $thread->created_at->format('M j, Y') }}@if ($thread->is_pinned) · Pinned @endif @if ($thread->is_locked) · Locked @endif</p>
+    <p>Started by @if ($thread->author)<a href="{{ route('members.show', $thread->author) }}">{{ $thread->author->name }}</a>@else{{ $thread->guest_name }} <span class="guest-label">Guest</span>@endif · {{ $thread->created_at->format('M j, Y') }}@if ($thread->is_pinned) · Pinned @endif @if ($thread->is_locked) · Locked @endif</p>
     <a class="text-link" href="{{ route('forum.board', $thread->board) }}">Back to board <span aria-hidden="true">↗</span></a>
 </section>
 @if (session('status'))<div class="form-success">{{ session('status') }}</div>@endif
@@ -32,7 +32,7 @@
                     @if ($characterImage)
                         <img src="{{ filter_var($characterImage, FILTER_VALIDATE_URL) ? $characterImage : asset('storage/'.$characterImage) }}" alt="{{ $post->character->name }} portrait">
                     @else
-                        <span>{{ strtoupper(substr($post->character?->name ?? $post->author->name, 0, 1)) }}</span>
+                        <span>{{ strtoupper(substr($post->character?->name ?? $post->author?->name ?? $post->guest_name ?? 'G', 0, 1)) }}</span>
                     @endif
                 </div>
                 @if ($post->character)
@@ -46,15 +46,15 @@
                         <div><span>Care</span><strong>{{ ucfirst($post->character->health_status ?? 'healthy') }}</strong></div>
                     </div>
                 @else
-                    <strong class="thread-character-name">{{ $post->author->name }}</strong>
+                    @if ($post->author)<a class="thread-character-name" href="{{ route('members.show', $post->author) }}">{{ $post->author->name }}</a>@else<strong class="thread-character-name">{{ $post->guest_name }} <span class="guest-label">Guest</span></strong>@endif
                     <span class="thread-character-role">{{ $post->is_ic ? 'Character unavailable' : 'Out of character' }}</span>
                 @endif
-                <span class="thread-player">Player: {{ $post->author->name }}</span>
+                <span class="thread-player">Player: @if ($post->author)<a href="{{ route('members.show', $post->author) }}">{{ $post->author->name }}</a>@else{{ $post->guest_name }} <span class="guest-label">Guest</span>@endif</span>
             </aside>
             <div class="thread-post-content">
-                <div class="thread-post-meta"><span>Post {{ $loop->iteration }}</span><time datetime="{{ $post->created_at->toISOString() }}">{{ $post->created_at->format('M j, Y · g:i A') }}</time>@if ($post->edited_at)<span class="thread-post-edited">Edited {{ $post->edited_at->diffForHumans() }}</span>@endif</div>
+                <div class="thread-post-meta"><span>Post {{ $posts->firstItem() + $loop->index }}</span><time datetime="{{ $post->created_at->toISOString() }}">{{ $post->created_at->format('M j, Y · g:i A') }}</time>@if ($post->edited_at)<span class="thread-post-edited">Edited {{ $post->edited_at->diffForHumans() }}</span>@endif</div>
                 <div data-post-display>
-                    <div class="thread-post-body">{!! nl2br(e($post->body)) !!}</div>
+                    <div class="thread-post-body">{!! \Illuminate\Support\Str::markdown($post->body) !!}</div>
                     @auth
                         <div class="thread-post-actions">
                             @if ($canEdit)<button class="text-link" type="button" data-post-edit-open>Edit</button>@endif
@@ -74,7 +74,7 @@
                 @if ($canEdit)
                     <form method="POST" action="{{ route('forum.post.update', $post) }}" class="cavernas-form post-action-panel" data-post-edit-panel hidden>
                         @csrf @method('PATCH')
-                        <label>Edit post<textarea name="body" rows="9" required>{{ $post->body }}</textarea></label>
+                        <label>Edit post</label><textarea name="body" rows="9" required>{{ $post->body }}</textarea><div data-rich-editor data-editor-target="body" aria-label="Post editor"></div>
                         <div class="post-action-buttons"><button class="button button-primary" type="submit">Update post</button><button class="button" type="button" data-post-action-cancel>Cancel</button></div>
                     </form>
                 @endif
@@ -82,12 +82,23 @@
         </article>
     @endforeach
 </div>
-@if (auth()->check() && (auth()->user()->status === 'approved' || auth()->user()->role === 'admin') && ! $thread->is_locked)
-    <form method="POST" action="{{ route('forum.reply.store', $thread) }}" class="cavernas-form reply-form"><div class="reply-heading"><div><p class="eyebrow">Continue the thread</p><h2>Add to the story</h2></div><span aria-hidden="true">✦</span></div>@csrf @if ($thread->board->is_ic)<label>Character <select name="character_id" required><option value="">Choose a character</option>@foreach ($characters as $character)<option value="{{ $character->id }}">{{ $character->name }} · {{ $character->energy }} energy</option>@endforeach</select></label>@endif<label>Reply<textarea name="body" rows="9" required></textarea></label><button class="button button-primary" type="submit">Post reply <span aria-hidden="true">→</span></button></form>
+    <div class="thread-pagination">{{ $posts->links() }}</div>
+    @if (((auth()->check() && (auth()->user()->status === 'approved' || auth()->user()->isStaff())) || (! auth()->check() && ($thread->board->slug === 'advertisements' || strtolower($thread->board->name) === 'advertisements'))) && ! $thread->is_locked)
+    <form method="POST" action="{{ route('forum.reply.store', $thread) }}" class="cavernas-form reply-form">
+        @csrf
+        @if ($thread->board->is_ic && auth()->check())
+            <label>Character <select name="character_id" required><option value="">Choose a character</option>@foreach ($characters as $character)<option value="{{ $character->id }}" @selected((string) old('character_id') === (string) $character->id)>{{ $character->name }} · {{ $character->energy }} energy</option>@endforeach</select></label>
+        @endif
+        <div class="reply-heading"><div><p class="eyebrow">Continue the thread</p><h2>Add to the story</h2></div><span aria-hidden="true">✦</span></div>
+        @guest
+            <label>Display name<input name="guest_name" value="{{ old('guest_name', session('guest_name')) }}" maxlength="80" required></label>
+            <label>What does 2+2 equal? (Type 22 if you are human.)<input name="human_answer" value="{{ old('human_answer') }}" inputmode="numeric" autocomplete="off" required></label>
+        @endguest
+        <label>Reply</label><textarea name="body" rows="9" required>{{ old('body') }}</textarea><div data-rich-editor data-editor-target="body" aria-label="Reply editor"></div>
+        <button class="button button-primary" type="submit">Post reply <span aria-hidden="true">→</span></button>
+    </form>
 @elseif ($thread->is_locked)
     <p class="form-intro">This story is closed to new replies.</p>
 @endif
-{{ $posts->links() }}
 </div>
 @endsection
-

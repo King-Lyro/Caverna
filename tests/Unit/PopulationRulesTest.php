@@ -44,4 +44,34 @@ class PopulationRulesTest extends TestCase
             ->assertSee('ThunderClan')->assertSee('She-cats')->assertSee('Toms')
             ->assertSee('Warriors')->assertSee('Apprentices')->assertSee('Outsiders');
     }
+
+    public function test_population_counts_every_living_clan_role_and_reports_sexes(): void
+    {
+        $user = User::factory()->create();
+        foreach ([
+            ['Kit', 'female', 'kit', 'inactive'],
+            ['Apprentice', 'male', 'apprentice', 'active'],
+            ['Warrior', 'female', 'warrior', 'active'],
+            ['Queen', 'female', 'queen', 'active'],
+            ['Elder', 'male', 'elder', 'active'],
+        ] as [$name, $sex, $role, $status]) {
+            Character::create([
+                'user_id' => $user->id,
+                'name' => $name,
+                'sex' => $sex,
+                'age_moons' => 12,
+                'allegiance' => 'ThunderClan',
+                'role' => $role,
+                'looks' => 'A coat.',
+                'appearance' => 'Appearance.',
+                'personality' => 'Personality.',
+                'history' => 'History.',
+                'energy' => 100,
+                'status' => $status,
+            ]);
+        }
+
+        $this->assertSame(5, CavernasRules::clanPopulationCounts()['ThunderClan']);
+        $this->assertSame(['female' => 3, 'male' => 2], CavernasRules::clanPopulationBreakdown()['ThunderClan']);
+    }
 }

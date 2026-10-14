@@ -1,7 +1,7 @@
 @extends('layouts.staff')
 
 @section('content')
-<section class="page-heading page-heading-theme compact-heading"><p class="eyebrow">Administrator panel</p><h1>Clan<br><em>population.</em></h1><p>Population control counts active and inactive Clan warriors and apprentices. Outsiders and kits are excluded.</p></section>
+<section class="page-heading page-heading-theme compact-heading"><p class="eyebrow">Administrator panel</p><h1>Clan<br><em>population.</em></h1><p>Population control counts every active and inactive Clan character. Deceased characters and outsiders are excluded.</p></section>
 <section class="population-admin-grid">
 @foreach ($clans as $clan)
     @php($count = $counts[$clan])

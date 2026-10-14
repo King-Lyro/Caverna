@@ -107,6 +107,9 @@ class AdoptionTest extends TestCase
     {
         $owner = User::factory()->create(['status' => 'approved']);
         $character = $this->character($owner, 'Stone');
+        $this->actingAs($owner)->get(route('adoption.create'))->assertOk()
+            ->assertSee('Current Allegiance')->assertSee('name="current_allegiance"', false)
+            ->assertSee('data-allegiance="ThunderClan"', false)->assertDontSee('Spirit Symbol');
 
         $this->actingAs($owner)->post(route('adoption.store'), [
             'character_id' => $character->id,

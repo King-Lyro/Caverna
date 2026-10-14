@@ -10,7 +10,7 @@ class ForumCategory extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'description', 'sort_order'];
+    protected $fillable = ['name', 'description', 'sort_order', 'territory'];
 
     public function boards(): HasMany
     {

@@ -7,19 +7,21 @@
     <title>{{ $title ?? 'Staff CP' }} | {{ __('site.name') }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="staff-cp-body theme-{{ session('theme', 'spring') }}">
+<body class="staff-cp-body theme-{{ $siteTheme ?? 'fall' }}">
     <div class="staff-cp-shell">
         <header class="staff-cp-topbar">
             <a class="staff-cp-brand" href="{{ route('staff.index') }}"><strong>Staff CP</strong><span>{{ __('site.name') }}</span></a>
             <div class="staff-cp-topbar-actions">
                 <a class="text-link" href="{{ route('home') }}">View site <span aria-hidden="true">↗</span></a>
-                <form method="POST" action="{{ route('theme.update', session('theme', 'spring')) }}" class="theme-switcher">
-                    @csrf
-                    <label for="staff-theme-select">Theme</label>
-                    <select id="staff-theme-select" name="theme" onchange="this.form.action='/theme/'+this.value; this.form.submit()">
-                        @foreach (__('site.themes') as $themeKey => $themeLabel)<option value="{{ $themeKey }}" @selected(session('theme', 'spring') === $themeKey)>{{ $themeLabel }}</option>@endforeach
-                    </select>
-                </form>
+                @if (auth()->user()->isAdmin())
+                    <form method="POST" action="{{ route('theme.update', $siteTheme ?? 'fall') }}" class="theme-switcher">
+                        @csrf
+                        <label for="staff-theme-select">Theme</label>
+                        <select id="staff-theme-select" name="theme" onchange="this.form.action='/theme/'+this.value; this.form.submit()">
+                            @foreach (__('site.themes') as $themeKey => $themeLabel)<option value="{{ $themeKey }}" @selected(($siteTheme ?? 'fall') === $themeKey)>{{ $themeLabel }}</option>@endforeach
+                        </select>
+                    </form>
+                @endif
                 <form method="POST" action="{{ route('logout') }}">@csrf<button class="button" type="submit">Log out</button></form>
             </div>
         </header>
@@ -63,5 +65,6 @@
         </div>
     </div>
     @stack('scripts')
+    @include('partials.form-state')
 </body>
 </html>

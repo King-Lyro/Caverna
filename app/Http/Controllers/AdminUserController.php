@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AuditLog;
+use App\Models\CricketLedgerEntry;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
@@ -23,9 +24,15 @@ class AdminUserController extends Controller
             ->latest()
             ->paginate(25)
             ->withQueryString();
+        $balances = DB::table('cricket_ledger')
+            ->whereIn('user_id', $users->getCollection()->pluck('id'))
+            ->selectRaw('user_id, sum(amount) as balance')
+            ->groupBy('user_id')
+            ->pluck('balance', 'user_id');
 
         return view('admin.users.index', [
             'users' => $users,
+            'balances' => $balances,
             'roles' => Role::query()->orderBy('id')->get(),
             'search' => $search,
         ]);
@@ -107,5 +114,37 @@ class AdminUserController extends Controller
         });
 
         return back()->with('status', 'Users and permissions updated.');
+    }
+
+    public function adjustCrickets(Request $request, User $user): RedirectResponse
+    {
+        $validated = $request->validate([
+            'amount' => ['required', 'integer', 'between:-1000000,1000000', 'not_in:0'],
+        ]);
+
+        DB::transaction(function () use ($request, $user, $validated): void {
+            $lockedUser = User::query()->whereKey($user->id)->lockForUpdate()->firstOrFail();
+            $before = (int) CricketLedgerEntry::query()->where('user_id', $lockedUser->id)->sum('amount');
+            CricketLedgerEntry::create([
+                'user_id' => $lockedUser->id,
+                'amount' => $validated['amount'],
+                'type' => 'admin_adjustment',
+                'description' => 'Administrator balance adjustment.',
+            ]);
+            AuditLog::create([
+                'user_id' => $request->user()->id,
+                'action' => 'user.crickets_adjusted',
+                'auditable_type' => User::class,
+                'auditable_id' => $lockedUser->id,
+                'changes' => [
+                    'amount' => (int) $validated['amount'],
+                    'balance_before' => $before,
+                    'balance_after' => $before + (int) $validated['amount'],
+                ],
+                'ip_address' => $request->ip(),
+            ]);
+        });
+
+        return back()->with('status', 'Crickets adjusted for '.$user->name.'.');
     }
 }

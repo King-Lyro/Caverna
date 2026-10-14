@@ -75,4 +75,23 @@ class StaffCharacterTest extends TestCase
         $this->assertNotNull($character->fresh()->forum_avatar_path);
         $this->assertDatabaseHas('audit_logs', ['auditable_id' => $character->id, 'action' => 'character.updated']);
     }
+
+    public function test_medicine_mentor_assignment_requires_matching_allegiance_and_no_pregnancy(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'status' => 'approved']);
+        $owner = User::factory()->create(['status' => 'approved']);
+        $fields = ['user_id' => $owner->id, 'sex' => 'female', 'age_moons' => 8, 'allegiance' => 'ThunderClan', 'role' => 'medicine_cat_apprentice', 'energy' => 100, 'status' => 'active', 'looks' => 'Bright eyes.', 'appearance' => 'Appearance.', 'personality' => 'Personality.', 'history' => 'History.'];
+        $apprentice = Character::create($fields + ['name' => 'Ash']);
+        $mentor = Character::create([...$fields, 'name' => 'Willow', 'age_moons' => 24, 'role' => 'medicine_cat', 'allegiance' => 'RiverClan']);
+        $this->actingAs($admin)->post(route('staff.characters.medicine-mentor', $apprentice), ['mentor_id' => $mentor->id])->assertSessionHas('error');
+        $mentor->update(['allegiance' => 'ThunderClan']);
+        \App\Models\Pregnancy::create([
+            'female_character_id' => $mentor->id, 'male_character_id' => $apprentice->id,
+            'conceived_at' => now(), 'due_at' => now()->addWeeks(4), 'status' => 'pregnant',
+        ]);
+        $this->post(route('staff.characters.medicine-mentor', $apprentice), ['mentor_id' => $mentor->id])->assertSessionHas('error');
+        $this->assertDatabaseCount('character_relationships', 0);
+        $this->get(route('staff.characters.edit', $apprentice))->assertOk()->assertDontSee('<option value="'.$mentor->id.'"', false);
+        $this->actingAs($owner)->get(route('characters.show', $mentor))->assertOk()->assertDontSee('Request mentorship for');
+    }
 }

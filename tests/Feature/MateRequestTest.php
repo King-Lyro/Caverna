@@ -36,6 +36,35 @@ class MateRequestTest extends TestCase
         $this->assertDatabaseHas('characters', ['id' => $to->id, 'mate' => 'Ember']);
     }
 
+    public function test_pending_pairing_requests_are_counted_for_both_owners_and_link_to_decisions(): void
+    {
+        $sender = User::factory()->create(['status' => 'approved']);
+        $recipient = User::factory()->create(['status' => 'approved']);
+        $from = $this->character($sender, 'Ember');
+        $to = $this->character($recipient, 'Rain');
+        $this->actingAs($sender)->post(route('characters.mate-request', $to), ['from_character_id' => $from->id])->assertRedirect();
+        $request = MateRequest::firstOrFail();
+        $notification = $recipient->notifications()->firstOrFail();
+
+        $this->assertSame(route('dashboard').'#breeding-requests', $notification->data['url']);
+        $this->get(route('dashboard'))->assertOk()
+            ->assertSee('Breeding requests</span><strong>1</strong>', false)
+            ->assertSee('Sent · Awaiting')
+            ->assertDontSee(route('characters.mate-reject', $request));
+        $this->actingAs($recipient)->get(route('dashboard'))->assertOk()
+            ->assertSee('Breeding requests</span><strong>1</strong>', false)
+            ->assertSee(route('characters.show', $from))
+            ->assertSee(route('characters.show', $to))
+            ->assertSee(route('characters.mate-accept', $request))
+            ->assertSee(route('characters.mate-reject', $request))
+            ->assertSee('id="breeding-requests"', false);
+        $this->patch(route('notifications.read', $notification->id))
+            ->assertRedirect(route('dashboard').'#breeding-requests');
+        $this->patch(route('characters.mate-reject', $request))->assertRedirect();
+        $this->assertDatabaseHas('mate_requests', ['id' => $request->id, 'status' => 'rejected']);
+        $this->assertNull($from->fresh()->mate);
+    }
+
     public function test_an_ordinary_character_under_twelve_moons_cannot_request_a_mate(): void
     {
         $sender = User::factory()->create(['status' => 'approved']);

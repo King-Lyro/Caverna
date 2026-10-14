@@ -11,7 +11,7 @@ class ForumPost extends Model
 {
     use HasFactory, SoftDeletes;
 
-    protected $fillable = ['forum_thread_id', 'user_id', 'character_id', 'body', 'is_ic', 'edited_at'];
+    protected $fillable = ['forum_thread_id', 'user_id', 'guest_name', 'character_id', 'body', 'is_ic', 'edited_at'];
 
     protected function casts(): array
     {

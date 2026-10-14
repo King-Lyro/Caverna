@@ -7,7 +7,7 @@
     <title>{{ $title ?? __('site.name') }} | {{ __('site.name') }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="cavernas-body theme-{{ session('theme', 'spring') }}">
+<body class="cavernas-body theme-{{ $siteTheme ?? 'fall' }}">
     <div class="site-frame">
         <header class="site-header">
             <a class="brand" href="{{ url('/') }}" aria-label="{{ __('site.name') }} home">
@@ -61,9 +61,10 @@
                     <a @class(['staff-cp-link', 'is-active' => request()->routeIs('staff.*', 'admin.*')]) href="{{ route('staff.index') }}">Staff CP</a>
                 @endif
                 <details class="nav-menu nav-menu-end nav-account">
-                    <summary @class(['is-active' => request()->routeIs('dashboard', 'account.*', 'notifications*')])><span class="nav-user-name">{{ auth()->user()->name }}</span>@if (auth()->user()->unreadNotifications->isNotEmpty())<sup>{{ auth()->user()->unreadNotifications->count() }}</sup>@endif</summary>
+                    <summary @class(['is-active' => request()->routeIs('dashboard', 'account.*', 'notifications*')])><span class="nav-user-name">Account</span>@if (auth()->user()->unreadNotifications->isNotEmpty())<sup>{{ auth()->user()->unreadNotifications->count() }}</sup>@endif</summary>
                     <div class="nav-menu-panel">
                         <a @class(['is-active' => request()->routeIs('dashboard')]) href="{{ route('dashboard') }}">{{ __('site.nav.dashboard') }}</a>
+                        <a href="{{ route('members.show', auth()->user()) }}" title="Public profile">{{ auth()->user()->name }}</a>
                         <a @class(['is-active' => request()->routeIs('account.*')]) href="{{ route('account.edit') }}">{{ __('site.nav.account') }}</a>
                         <a @class(['is-active' => request()->routeIs('notifications*')]) href="{{ route('notifications') }}">{{ __('site.nav.notifications') }} @if (auth()->user()->unreadNotifications->isNotEmpty())<sup>{{ auth()->user()->unreadNotifications->count() }}</sup>@endif</a>
                         <form method="POST" action="{{ route('logout') }}">@csrf<button class="nav-button" type="submit">{{ __('site.nav.logout') }}</button></form>
@@ -73,19 +74,23 @@
                 <a href="{{ url('/login') }}">{{ __('site.nav.login') }}</a>
                 <a class="nav-cta" href="{{ url('/register') }}">{{ __('site.nav.join') }}</a>
             @endauth
-            <form method="POST" action="{{ route('theme.update', session('theme', 'spring')) }}" class="theme-switcher">
-                @csrf
-                <label for="theme-select">{{ __('site.theme_label') }}</label>
-                <select id="theme-select" name="theme" onchange="this.form.action='/theme/'+this.value; this.form.submit()">
-                    @foreach (__('site.themes') as $themeKey => $themeLabel)<option value="{{ $themeKey }}" @selected(session('theme', 'spring') === $themeKey)>{{ $themeLabel }}</option>@endforeach
-                </select>
-            </form>
+            @auth
+                @if (auth()->user()->isAdmin())
+                    <form method="POST" action="{{ route('theme.update', $siteTheme ?? 'fall') }}" class="theme-switcher">
+                        @csrf
+                        <label for="theme-select">{{ __('site.theme_label') }}</label>
+                        <select id="theme-select" name="theme" onchange="this.form.action='/theme/'+this.value; this.form.submit()">
+                            @foreach (__('site.themes') as $themeKey => $themeLabel)<option value="{{ $themeKey }}" @selected(($siteTheme ?? 'fall') === $themeKey)>{{ $themeLabel }}</option>@endforeach
+                        </select>
+                    </form>
+                @endif
+            @endauth
         </nav>
 
         <div class="site-grid">
             <aside class="sidebar sidebar-left" aria-label="World navigation">
                 @foreach (($sidebarModules ?? collect())->where('placement', 'left') as $module)
-                    <section class="sidebar-card"><p class="eyebrow">{{ $module->title }}</p><p>{{ $module->body }}</p>@if ($module->link_text && $module->link_url)<a class="text-link" href="{{ $module->link_url }}">{{ $module->link_text }} <span aria-hidden="true">↗</span></a>@endif</section>
+                    <section class="sidebar-card"><p class="eyebrow">{{ $module->title }}</p><div>{!! \Illuminate\Support\Str::markdown($module->body) !!}</div>@if ($module->link_text && $module->link_url)<a class="text-link" href="{{ $module->link_url }}">{{ $module->link_text }} <span aria-hidden="true">↗</span></a>@endif</section>
                 @endforeach
                 <section class="sidebar-card">
                     <p class="eyebrow">{{ __('site.shell.begin_here') }}</p>
@@ -125,7 +130,7 @@
 
             <aside class="sidebar sidebar-right" aria-label="Cavernas activity">
                 @foreach (($sidebarModules ?? collect())->where('placement', 'right') as $module)
-                    <section class="sidebar-card"><p class="eyebrow">{{ $module->title }}</p><p>{{ $module->body }}</p>@if ($module->link_text && $module->link_url)<a class="text-link" href="{{ $module->link_url }}">{{ $module->link_text }} <span aria-hidden="true">↗</span></a>@endif</section>
+                    <section class="sidebar-card"><p class="eyebrow">{{ $module->title }}</p><div>{!! \Illuminate\Support\Str::markdown($module->body) !!}</div>@if ($module->link_text && $module->link_url)<a class="text-link" href="{{ $module->link_url }}">{{ $module->link_text }} <span aria-hidden="true">↗</span></a>@endif</section>
                 @endforeach
                 <section class="sidebar-card bulletin">
                     <p class="eyebrow">{{ __('site.shell.field_notes') }}</p>
@@ -148,9 +153,11 @@
 
         <footer class="site-footer">
             <span>{{ __('site.name') }} · {{ __('site.shell.footer_tagline') }}</span>
+            <span>This is a non-profit fan-made site; the Warriors series, concepts, and characters belong entirely to Erin Hunter and HarperCollins Publishers, and no copyright infringement is intended.</span>
             <span><a href="{{ route('content.page', 'rules') }}">{{ __('site.footer.rules') }}</a> · <a href="{{ route('content.page', 'privacy') }}">{{ __('site.footer.privacy') }}</a> · <a href="{{ route('content.page', 'contact') }}">{{ __('site.footer.contact') }}</a></span>
         </footer>
     </div>
     @stack('scripts')
+    @include('partials.form-state')
 </body>
 </html>

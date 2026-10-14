@@ -49,9 +49,11 @@ class CharacterLifecycleService
             $character->archived_at = $character->archived_at ?: $now;
         }
 
-        if ($character->role === 'queen' && ! $character->role_locked && $character->status !== 'deceased' && ! $character->isNursingQueen($now)) {
+        if ($character->role === 'queen' && $character->status !== 'deceased' && ! $character->isNursingQueen($now)) {
             $pregnancy = Pregnancy::where('female_character_id', $character->id)->where('status', 'birthed')->latest('due_at')->first();
-            $character->role = $pregnancy?->previous_female_role ?: $character->calculatedRole();
+            if ($pregnancy?->previous_female_role || ! $character->role_locked) {
+                $character->role = $pregnancy?->previous_female_role ?: $character->calculatedRole();
+            }
         }
 
         $character->save();
