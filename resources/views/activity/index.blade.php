@@ -2,11 +2,7 @@
 
 @section('content')
 <section class="content-page activity-page">
-    <div class="page-heading page-heading-theme">
-        <p class="eyebrow">{{ __('site.activity.eyebrow') }}</p>
-        <h1>{!! nl2br(e(__('site.activity.title'))) !!}</h1>
-        <p>{{ __('site.activity.intro') }}</p>
-    </div>
+    <x-presentation-heading :eyebrow="__('site.activity.eyebrow')" :title="__('site.activity.title')" :intro="__('site.activity.intro')" />
     <div class="activity-list-content">
         <section class="activity-how" aria-labelledby="activity-how-title">
             <p class="eyebrow">Activity checks</p><h2 id="activity-how-title">How it works</h2>

@@ -1,7 +1,7 @@
 @extends('layouts.cavernas')
 
 @section('content')
-<section class="form-panel character-form"><p class="eyebrow">Character creation</p><h1>Leave your<br><em>first tracks.</em></h1><p class="form-intro">Your first three non-adopted characters are free. Every character must be at least six moons old.</p>@if ($errors->any())<div class="form-alert" role="alert">{{ $errors->first() }}</div>@endif
+<section class="form-panel character-form"><x-presentation-heading eyebrow="Character creation" :title="'Leave your'.PHP_EOL.'first tracks.'" intro="Your first three non-adopted characters are free. Every character must be at least six moons old." />@if ($errors->any())<div class="form-alert" role="alert">{{ $errors->first() }}</div>@endif
 <form method="POST" action="{{ route('characters.store') }}" enctype="multipart/form-data" class="cavernas-form">@csrf
 <div class="form-columns"><label>Name<input name="name" value="{{ old('name') }}" required></label><label>Sex<select name="sex" required><option value="">Choose</option><option value="female" @selected(old('sex') === 'female')>She-cat</option><option value="male" @selected(old('sex') === 'male')>Tom</option></select></label></div>
 <label>Eye color<input name="eye_color" value="{{ old('eye_color') }}" required></label>

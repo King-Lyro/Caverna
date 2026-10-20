@@ -1,7 +1,7 @@
 @extends('layouts.cavernas')
 
 @section('content')
-<section class="form-panel character-form"><p class="eyebrow">Character profile</p><h1>Edit<br><em>{{ $character->name }}.</em></h1><p class="form-intro">Age is set when a character is created and advances with the seasons.</p>
+<section class="form-panel character-form"><x-presentation-decoration /><p class="eyebrow">Character profile</p><h1>Edit<br><em>{{ $character->name }}.</em></h1><p class="form-intro">Age is set when a character is created and advances with the seasons.</p>
 <form method="POST" action="{{ route('characters.update', $character) }}" enctype="multipart/form-data" class="cavernas-form">@csrf @method('PATCH')
 <div class="form-columns"><label>Name<input name="name" value="{{ old('name', $character->name) }}" required></label><label>Sex<select name="sex" required><option value="female" @selected(old('sex', $character->sex) === 'female')>She-cat</option><option value="male" @selected(old('sex', $character->sex) === 'male')>Tom</option></select></label></div>
 <label>Eye color<input name="eye_color" value="{{ old('eye_color', $character->eye_color) }}" required></label>

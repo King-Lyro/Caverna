@@ -1,11 +1,7 @@
 @extends('layouts.cavernas')
 
 @section('content')
-<section class="page-heading page-heading-theme compact-heading">
-    <p class="eyebrow">{{ __('site.forum.eyebrow') }}</p>
-    <h1>{!! nl2br(e(__('site.forum.title'))) !!}</h1>
-    <p>{{ __('site.forum.intro') }}</p>
-</section>
+<x-presentation-heading :eyebrow="__('site.forum.eyebrow')" :title="__('site.forum.title')" :intro="__('site.forum.intro')" class="compact-heading" />
 
 @forelse ($categories as $category)
     <section class="forum-category">

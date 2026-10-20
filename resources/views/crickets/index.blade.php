@@ -2,11 +2,7 @@
 
 @section('content')
 <section class="content-page">
-    <div class="page-heading page-heading-theme compact-heading">
-        <p class="eyebrow">Your economy</p>
-        <h1>Cricket<br><em>ledger.</em></h1>
-        <p>A transparent record of every cricket earned and spent.</p>
-    </div>
+    <x-presentation-heading eyebrow="Your economy" :title="'Cricket'.PHP_EOL.'ledger.'" intro="A transparent record of every cricket earned and spent." class="compact-heading" />
     <div class="activity-list-content">
         <section class="activity-list-section" aria-labelledby="ledger-list-title">
             <div class="activity-list-heading"><h2 id="ledger-list-title">Recent activity</h2><span>{{ $entries->total() }} {{ $entries->total() === 1 ? 'entry' : 'entries' }}</span></div>

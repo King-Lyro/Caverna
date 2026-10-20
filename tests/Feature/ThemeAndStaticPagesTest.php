@@ -2,20 +2,20 @@
 
 namespace Tests\Feature;
 
-use App\Models\ContentPage;
 use App\Models\Character;
 use App\Models\ForumBoard;
 use App\Models\ForumCategory;
-use App\Models\ShopItem;
 use App\Models\Rule;
 use App\Models\RuleCategory;
+use App\Models\ShopItem;
 use App\Models\User;
 use App\Models\WorldPage;
 use App\Support\TerritoryMap;
-use Database\Seeders\MapForumSeeder;
 use Database\Seeders\DatabaseSeeder;
+use Database\Seeders\MapForumSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -62,13 +62,13 @@ class ThemeAndStaticPagesTest extends TestCase
             $map->assertSee(route('forum.board', $location['slug']));
             $this->assertDatabaseHas('forum_boards', ['slug' => $location['slug'], 'is_ic' => true]);
         }
-        foreach (collect(TerritoryMap::locations())->pluck('territory')->unique() as $territory) {
+        foreach (TerritoryMap::forums() as $territory => $names) {
             $this->assertSame(
-                collect(TerritoryMap::locations())->where('territory', $territory)->count(),
-                ForumCategory::where('name', $territory.' Territory')->firstOrFail()->boards()->count(),
+                count($names),
+                ForumCategory::where('name', $territory === 'outsider' ? 'Outsider Land' : $territory.' Territory')->firstOrFail()->boards()->count(),
             );
         }
-        $this->assertSame(count(TerritoryMap::locations()) + 1, ForumBoard::count());
+        $this->assertSame(array_sum(array_map('count', TerritoryMap::forums())) + 1, ForumBoard::count());
         $this->get(route('forum.board', 'thunderclan-camp'))->assertOk()->assertSee('ThunderClan Camp');
     }
 
@@ -354,7 +354,7 @@ class ThemeAndStaticPagesTest extends TestCase
         $this->actingAs($admin)->get(route('home'))->assertOk()->assertDontSee('<option value="river"', false);
         $this->post(route('theme.update', 'river'))->assertNotFound();
         DB::table('site_settings')->where('key', 'theme')->update(['value' => 'river']);
-        \Illuminate\Support\Facades\Cache::forget('site_theme');
+        Cache::forget('site_theme');
         $this->get(route('home'))->assertOk()->assertSee('theme-fall', false);
         (require database_path('migrations/2026_10_15_000005_remove_river_theme.php'))->up();
         $this->assertDatabaseHas('site_settings', ['key' => 'theme', 'value' => 'fall']);

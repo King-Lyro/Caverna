@@ -2,8 +2,7 @@
 
 @section('content')
 <section class="form-panel form-panel-short">
-    <p class="eyebrow">{{ __('site.auth.recovery_eyebrow') }}</p>
-    <h1>{!! nl2br(e(__('site.auth.reset_title'))) !!}</h1>
+    <x-presentation-heading :eyebrow="__('site.auth.recovery_eyebrow')" :title="__('site.auth.reset_title')" />
     @if ($errors->any())<div class="form-alert" role="alert">{{ $errors->first() }}</div>@endif
     <form method="POST" action="{{ route('password.update') }}" class="cavernas-form">
         @csrf

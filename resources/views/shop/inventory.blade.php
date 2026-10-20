@@ -1,7 +1,7 @@
 @extends('layouts.cavernas')
 
 @section('content')
-<section class="forum-heading compact-heading"><p class="eyebrow">Your belongings</p><h1>Your<br><em>inventory.</em></h1><p>Items you have earned or purchased are kept here.</p></section>
+<x-presentation-heading eyebrow="Your belongings" :title="'Your'.PHP_EOL.'inventory.'" intro="Items you have earned or purchased are kept here." class="compact-heading" />
 <div class="shop-grid">
 	@forelse ($items as $inventory)
 		<article class="shop-card inventory-card">

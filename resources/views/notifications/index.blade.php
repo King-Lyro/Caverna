@@ -2,11 +2,7 @@
 
 @section('content')
 <section class="content-page">
-    <div class="page-heading page-heading-theme compact-heading">
-        <p class="eyebrow">Your signals</p>
-        <h1>Notifications.</h1>
-        <p>Important account and story updates appear here.</p>
-    </div>
+    <x-presentation-heading eyebrow="Your signals" title="Notifications." intro="Important account and story updates appear here." class="compact-heading" />
     <div class="activity-list-content">
         <section class="activity-list-section notifications-list-section" aria-labelledby="notifications-list-title">
             <div class="activity-list-heading">

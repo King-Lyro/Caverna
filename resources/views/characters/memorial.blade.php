@@ -2,7 +2,7 @@
 
 @section('content')
 <section class="content-page memorial-page">
-	<div class="page-heading page-heading-theme"><p class="eyebrow">The remembered</p><h1>Character<br><em>memorial.</em></h1><p class="content-intro">Every life leaves a mark on Cavernas. These characters remain part of the world's history.</p></div>
+	<x-presentation-heading eyebrow="The remembered" :title="'Character'.PHP_EOL.'memorial.'" intro="Every life leaves a mark on Cavernas. These characters remain part of the world's history." />
 	<div class="memorial-content">
 		<div class="memorial-list">
 		<div class="memorial-heading"><h2>Lives remembered</h2><span>{{ $characters->total() }} {{ $characters->total() === 1 ? 'character' : 'characters' }}</span></div>

@@ -1,11 +1,7 @@
 @extends('layouts.cavernas')
 
 @section('content')
-<section class="dashboard-heading">
-    <p class="eyebrow">Your camp</p>
-    <h1>Welcome back,<br><em>{{ auth()->user()->name }}.</em></h1>
-    <p>Keep track of the characters, stories, and paths currently in your care.</p>
-</section>
+<x-presentation-heading eyebrow="Your camp" title="Welcome back," intro="Keep track of the characters, stories, and paths currently in your care." :member="auth()->user()" class="dashboard-heading" />
 
 <div class="dashboard-stats">
     <article><span class="eyebrow">Crickets</span><strong>{{ number_format($crickets) }}</strong><small><a class="text-link" href="{{ route('crickets') }}">view ledger</a></small></article>

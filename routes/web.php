@@ -2,8 +2,8 @@
 
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\ActivityController;
-use App\Http\Controllers\AdminAdoptionController;
 use App\Http\Controllers\AdminAdoptionContentController;
+use App\Http\Controllers\AdminAdoptionController;
 use App\Http\Controllers\AdminContentController;
 use App\Http\Controllers\AdminGuideController;
 use App\Http\Controllers\AdminItemsController;
@@ -12,6 +12,7 @@ use App\Http\Controllers\AdminOwnershipController;
 use App\Http\Controllers\AdminPopulationController;
 use App\Http\Controllers\AdminRulesController;
 use App\Http\Controllers\AdminStaticPageController;
+use App\Http\Controllers\AdminThemeController;
 use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\AdminWorldPageController;
 use App\Http\Controllers\AdoptionController;
@@ -109,6 +110,8 @@ Route::middleware('auth')->group(function () {
     Route::patch('/mate-requests/{mateRequest}/accept', [CharacterController::class, 'acceptMate'])->name('characters.mate-accept');
     Route::patch('/mate-requests/{mateRequest}/reject', [CharacterController::class, 'rejectMate'])->name('characters.mate-reject');
     Route::patch('/character-relationships/{relationship}/accept', [CharacterController::class, 'acceptMentor'])->name('characters.mentor-accept');
+    Route::delete('/characters/{character}/mate', [CharacterController::class, 'removeMate'])->name('characters.mate-remove');
+    Route::delete('/character-relationships/{relationship}/mentor', [CharacterController::class, 'removeMentor'])->name('characters.mentor-remove');
     Route::get('/inventory', [ShopController::class, 'inventory'])->name('inventory');
     Route::post('/inventory/{inventory}/use', [ShopController::class, 'useItem'])->name('inventory.use');
     Route::post('/shop/{item}/purchase', [ShopController::class, 'purchase'])->middleware('throttle:20,1')->name('shop.purchase');
@@ -141,6 +144,22 @@ Route::middleware(['auth', 'staff'])->prefix('staff')->name('staff.')->group(fun
 });
 
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/themes', [AdminThemeController::class, 'index'])->name('themes.index');
+    Route::post('/themes', [AdminThemeController::class, 'store'])->name('themes.store');
+    Route::get('/appearance', [AdminThemeController::class, 'edit'])->name('appearance.edit');
+    Route::patch('/appearance', [AdminThemeController::class, 'presentation'])->name('appearance.update');
+    Route::post('/themes/images', [AdminThemeController::class, 'upload'])->name('themes.images');
+    Route::post('/themes/preview/stop', [AdminThemeController::class, 'stopPreview'])->name('themes.preview.stop');
+    Route::patch('/themes/scheduling', [AdminThemeController::class, 'scheduling'])->name('themes.scheduling');
+    Route::post('/themes/schedules', [AdminThemeController::class, 'saveSchedule'])->name('themes.schedules.store');
+    Route::patch('/themes/schedules/{schedule}', [AdminThemeController::class, 'saveSchedule'])->name('themes.schedules.update');
+    Route::delete('/themes/schedules/{schedule}', [AdminThemeController::class, 'destroySchedule'])->name('themes.schedules.destroy');
+    Route::get('/themes/{theme}/edit', [AdminThemeController::class, 'edit'])->name('themes.edit');
+    Route::patch('/themes/{theme}', [AdminThemeController::class, 'update'])->name('themes.update');
+    Route::patch('/themes/{theme}/presentation', [AdminThemeController::class, 'presentation'])->name('themes.presentation');
+    Route::post('/themes/{theme}/duplicate', [AdminThemeController::class, 'duplicate'])->name('themes.duplicate');
+    Route::post('/themes/{theme}/preview', [AdminThemeController::class, 'preview'])->name('themes.preview');
+    Route::delete('/themes/{theme}', [AdminThemeController::class, 'destroy'])->name('themes.destroy');
     Route::get('/users', [AdminUserController::class, 'index'])->name('users.index');
     Route::patch('/users', [AdminUserController::class, 'bulkUpdate'])->name('users.bulk-update');
     Route::patch('/users/{user}', [AdminUserController::class, 'update'])->name('users.update');

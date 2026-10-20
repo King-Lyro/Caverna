@@ -1,11 +1,16 @@
 @extends('layouts.cavernas')
 
 @section('content')
-<section class="page-heading page-heading-theme compact-heading"><p class="eyebrow">{{ __('site.characters.directory_eyebrow') }}</p><h1>{!! nl2br(e(__('site.characters.directory_title'))) !!}</h1><p>{{ __('site.characters.directory_intro') }}</p><a class="text-link" href="{{ route('characters.memorial') }}">{{ __('site.characters.memorial') }} <span aria-hidden="true">↗</span></a>@auth @if (auth()->user()->status === 'approved' || auth()->user()->role === 'admin')<a class="button button-primary" href="{{ route('characters.create') }}">{{ __('site.characters.create') }} <span aria-hidden="true">→</span></a>@endif @endauth</section>
+<x-presentation-heading :eyebrow="__('site.characters.directory_eyebrow')" :title="__('site.characters.directory_title')" :intro="__('site.characters.directory_intro')" class="compact-heading">
+    <a class="text-link" href="{{ route('characters.memorial') }}">{{ \App\Services\SiteAppearance::current()->text('page.characters.action.memorial', __('site.characters.memorial')) }} <span aria-hidden="true">↗</span></a>
+    @auth @if (auth()->user()->status === 'approved' || auth()->user()->role === 'admin')<a class="button button-primary" href="{{ route('characters.create') }}">{{ \App\Services\SiteAppearance::current()->text('page.characters.action.create', __('site.characters.create')) }} <span aria-hidden="true">→</span></a>@endif @endauth
+</x-presentation-heading>
 <div class="directory-tools"><form method="GET" action="{{ route('characters') }}" class="directory-search"><input name="search" value="{{ $search }}" placeholder="{{ __('site.characters.search_placeholder') }}"><button class="button button-primary" type="submit">{{ __('site.characters.search') }}</button></form></div>
 <section class="clan-population-summary" aria-label="Clan population breakdown">
     @foreach ($clans as $clan)
-        <article><strong>{{ $clan }}</strong><span>{{ $populationCounts[$clan] ?? 0 }} characters</span><small>{{ $populationSexCounts[$clan]['female'] ?? 0 }} she-cats · {{ $populationSexCounts[$clan]['male'] ?? 0 }} toms</small></article>
+        @php($warriors = $populationRoleCounts[$clan]['warrior'] ?? 0)
+        @php($apprentices = $populationRoleCounts[$clan]['apprentice'] ?? 0)
+        <article><strong>{{ $clan }}</strong><span>{{ $populationCounts[$clan] ?? 0 }} characters</span><small>{{ $populationSexCounts[$clan]['female'] ?? 0 }} she-cats · {{ $populationSexCounts[$clan]['male'] ?? 0 }} toms</small><small>{{ $warriors }} {{ \Illuminate\Support\Str::plural('warrior', $warriors) }} · {{ $apprentices }} {{ \Illuminate\Support\Str::plural('apprentice', $apprentices) }}</small></article>
     @endforeach
 </section>
 <section class="character-directory-wrap" aria-label="Character directory">

@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 class Character extends Model
 {
@@ -52,12 +53,12 @@ class Character extends Model
 
     public function mentors(): BelongsToMany
     {
-        return $this->belongsToMany(self::class, 'character_relationships', 'character_id', 'related_character_id')->wherePivot('type', 'mentor')->wherePivot('status', 'accepted')->withPivot('accepted_at');
+        return $this->belongsToMany(self::class, 'character_relationships', 'character_id', 'related_character_id')->wherePivot('type', 'mentor')->wherePivot('status', 'accepted')->withPivot('id', 'accepted_at');
     }
 
     public function apprentices(): BelongsToMany
     {
-        return $this->belongsToMany(self::class, 'character_relationships', 'related_character_id', 'character_id')->wherePivot('type', 'mentor')->wherePivot('status', 'accepted')->withPivot('accepted_at');
+        return $this->belongsToMany(self::class, 'character_relationships', 'related_character_id', 'character_id')->wherePivot('type', 'mentor')->wherePivot('status', 'accepted')->withPivot('id', 'accepted_at');
     }
 
     public function hasCurrentApprentice(): bool
@@ -85,7 +86,7 @@ class Character extends Model
         return CavernasRules::roleForAge((float) $this->age_moons, $this->allegiance);
     }
 
-    public function isNursingQueen(?\Illuminate\Support\Carbon $now = null): bool
+    public function isNursingQueen(?Carbon $now = null): bool
     {
         if ($this->role !== 'queen') {
             return false;

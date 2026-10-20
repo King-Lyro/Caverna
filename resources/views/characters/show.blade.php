@@ -7,6 +7,7 @@
 @if (session('status'))<div class="form-success">{{ session('status') }}</div>@endif
 
 <section class="character-profile">
+    <x-presentation-decoration />
 	<header class="profile-banner">
 		<div class="profile-heading">
 			<p class="eyebrow">{{ $character->allegiance }} <span aria-hidden="true">·</span> {{ $character->role }}</p>
@@ -59,7 +60,29 @@
 
 		<div class="profile-sidebar">
 			<section class="profile-facts">
-				<div class="profile-fact"><span class="eyebrow">Mating</span><strong>{{ $character->mates->first()?->name ?: ($character->mate ?: 'None') }}</strong></div>
+				<div class="profile-fact">
+                    <span class="eyebrow">Mating</span><strong>{{ $character->mates->first()?->name ?: ($character->mate ?: 'None') }}</strong>
+                    @auth
+                        @if ($character->user_id === auth()->id() && ($character->mates->isNotEmpty() || $character->mate))
+                            <form method="POST" action="{{ route('characters.mate-remove', $character) }}" data-confirm="End this mate relationship? The other owner will be notified.">@csrf @method('DELETE')<button class="text-link" type="submit">Remove</button></form>
+                        @endif
+                    @endauth
+                </div>
+                @foreach (['mentors' => 'mentor', 'apprentices' => 'apprentice'] as $relation => $label)
+                    <div class="profile-fact">
+                        <span class="eyebrow">{{ $relation === 'mentors' ? 'Mentor' : 'Apprentices' }}</span>
+                        @forelse ($character->$relation as $related)
+                            <strong><a href="{{ route('characters.show', $related) }}">{{ $related->name }}</a></strong>
+                            @auth
+                                @if ($character->user_id === auth()->id() || $related->user_id === auth()->id())
+                                <form method="POST" action="{{ route('characters.mentor-remove', $related->pivot->id) }}" data-confirm="End this mentorship? The other owner will be notified.">@csrf @method('DELETE')<button class="text-link" type="submit">Remove</button></form>
+                                @endif
+                            @endauth
+                        @empty
+                            <strong>None</strong>
+                        @endforelse
+                    </div>
+                @endforeach
 				@if ($profileStats['familyKits']->isNotEmpty() || $character->kits)<div class="profile-fact"><span class="eyebrow">Kits</span><strong>{{ $profileStats['familyKits']->pluck('name')->join(', ') ?: $character->kits }}</strong></div>@endif
 				@auth
 					@if (! $character->mate && (float) $character->age_moons >= 12 && $character->status === 'active' && ! $character->is_frozen && $ownedCharacters->isNotEmpty() && $character->user_id !== auth()->id())

@@ -20,6 +20,11 @@ class User extends Authenticatable
         return $this->hasMany(Character::class);
     }
 
+    public function avatarUrl(): string
+    {
+        return $this->avatar_path ? asset('storage/'.$this->avatar_path) : asset('images/profile_default.png');
+    }
+
     public function roles(): BelongsToMany
     {
         return $this->belongsToMany(Role::class, 'user_roles')->withTimestamps();

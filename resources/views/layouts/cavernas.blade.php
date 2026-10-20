@@ -7,16 +7,18 @@
     <title>{{ $title ?? __('site.name') }} | {{ __('site.name') }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="cavernas-body theme-{{ $siteTheme ?? 'fall' }}">
+<body class="cavernas-body theme-{{ $siteTheme ?? 'fall' }}" style="{{ $appearance->style() }}">
     <div class="site-frame">
-        <header class="site-header">
+        @include('partials.theme-status')
+        <header class="site-header header-fit-{{ $appearance->text('header.fit', 'contain') }} header-position-{{ $appearance->text('header.position', 'center') }}">
             <a class="brand" href="{{ url('/') }}" aria-label="{{ __('site.name') }} home">
+                <x-presentation-art name="header" />
                 <span>
-                    <strong>{{ __('site.name') }}</strong>
-                    <small>{{ __('site.tagline') }}</small>
+                    @if ($appearance->text('header.show_title', 'yes') !== 'no' || ! $appearance->image('header.image'))<strong>{{ __('site.name') }}</strong>@endif
+                    <small>{{ $appearance->text('header.tagline', __('site.tagline')) }}</small>
                 </span>
             </a>
-            <div class="header-status">{{ __('site.season') }}</div>
+            <div class="header-status">{{ $appearance->text('header.season', __('site.season')) }}</div>
         </header>
 
         <nav class="site-nav" aria-label="Primary navigation">
@@ -74,32 +76,27 @@
                 <a href="{{ url('/login') }}">{{ __('site.nav.login') }}</a>
                 <a class="nav-cta" href="{{ url('/register') }}">{{ __('site.nav.join') }}</a>
             @endauth
-            @auth
-                @if (auth()->user()->isAdmin())
-                    <form method="POST" action="{{ route('theme.update', $siteTheme ?? 'fall') }}" class="theme-switcher">
-                        @csrf
-                        <label for="theme-select">{{ __('site.theme_label') }}</label>
-                        <select id="theme-select" name="theme" onchange="this.form.action='/theme/'+this.value; this.form.submit()">
-                            @foreach (__('site.themes') as $themeKey => $themeLabel)<option value="{{ $themeKey }}" @selected(($siteTheme ?? 'fall') === $themeKey)>{{ $themeLabel }}</option>@endforeach
-                        </select>
-                    </form>
-                @endif
-            @endauth
+            @include('partials.theme-switcher', ['id' => 'theme-select'])
         </nav>
 
         <div class="site-grid">
             <aside class="sidebar sidebar-left" aria-label="World navigation">
                 @foreach (($sidebarModules ?? collect())->where('placement', 'left') as $module)
-                    <section class="sidebar-card"><p class="eyebrow">{{ $module->title }}</p><div>{!! \Illuminate\Support\Str::markdown($module->body) !!}</div>@if ($module->link_text && $module->link_url)<a class="text-link" href="{{ $module->link_url }}">{{ $module->link_text }} <span aria-hidden="true">↗</span></a>@endif</section>
+                    @include('partials.presentation-module')
                 @endforeach
+                <x-presentation-blocks name="sidebar.welcome.before" />
                 <section class="sidebar-card">
-                    <p class="eyebrow">{{ __('site.shell.begin_here') }}</p>
-                    <h2>{{ __('site.shell.find_way') }}</h2>
-                    <p>{{ __('site.shell.guide_intro') }}</p>
-                    <a class="text-link" href="{{ route('content.page', 'guide') }}">{{ __('site.shell.read_guide') }} <span aria-hidden="true">↗</span></a>
+                    <x-presentation-art name="sidebar.welcome" />
+                    <p class="eyebrow">{{ $appearance->text('shell.begin_here', __('site.shell.begin_here')) }}</p>
+                    <h2>{{ $appearance->text('shell.find_way', __('site.shell.find_way')) }}</h2>
+                    <p>{{ $appearance->text('shell.guide_intro', __('site.shell.guide_intro')) }}</p>
+                    <a class="text-link" href="{{ route('content.page', 'guide') }}">{{ $appearance->text('shell.read_guide', __('site.shell.read_guide')) }} <span aria-hidden="true">↗</span></a>
                 </section>
+                <x-presentation-blocks name="sidebar.welcome.after" />
+                <x-presentation-blocks name="sidebar.paths.before" />
                 <section class="sidebar-card sidebar-card-quiet">
-                    <p class="eyebrow"><a href="{{ route('content.page', 'clans') }}">{{ __('site.shell.four_paths') }}</a></p>
+                    <x-presentation-art name="sidebar.paths" />
+                    <p class="eyebrow"><a href="{{ route('content.page', 'clans') }}">{{ $appearance->text('shell.four_paths', __('site.shell.four_paths')) }}</a></p>
                     <ul class="clan-list">
                         @foreach (($worldPages ?? collect())->get('clans', collect()) as $clan)
                             <li><span class="clan-dot {{ $clan->slug }}" aria-hidden="true"></span><a href="{{ route('world.show', ['kind' => 'clans', 'slug' => $clan->slug]) }}" @if (request()->is('clans/'.$clan->slug)) aria-current="page" @endif>{{ $clan->name }}</a></li>
@@ -107,7 +104,7 @@
                     </ul>
                     @if (($worldPages ?? collect())->get('outsiders', collect())->isNotEmpty())
                         <div class="sidebar-world-group">
-                            <p class="eyebrow"><a href="{{ route('content.page', 'outsiders') }}">{{ __('site.nav.outsiders') }}</a></p>
+                            <p class="eyebrow"><a href="{{ route('content.page', 'outsiders') }}">{{ $appearance->text('shell.outsiders', __('site.nav.outsiders')) }}</a></p>
                             <ul class="clan-list">
                                 @foreach ($worldPages->get('outsiders') as $outsider)
                                     <li><span class="clan-dot outsider" aria-hidden="true"></span><a href="{{ route('world.show', ['kind' => 'outsiders', 'slug' => $outsider->slug]) }}" @if (request()->is('outsiders/'.$outsider->slug)) aria-current="page" @endif>{{ $outsider->name }}</a></li>
@@ -116,6 +113,7 @@
                         </div>
                     @endif
                 </section>
+                <x-presentation-blocks name="sidebar.paths.after" />
             </aside>
 
             <main class="main-content">
@@ -130,16 +128,21 @@
 
             <aside class="sidebar sidebar-right" aria-label="Cavernas activity">
                 @foreach (($sidebarModules ?? collect())->where('placement', 'right') as $module)
-                    <section class="sidebar-card"><p class="eyebrow">{{ $module->title }}</p><div>{!! \Illuminate\Support\Str::markdown($module->body) !!}</div>@if ($module->link_text && $module->link_url)<a class="text-link" href="{{ $module->link_url }}">{{ $module->link_text }} <span aria-hidden="true">↗</span></a>@endif</section>
+                    @include('partials.presentation-module')
                 @endforeach
+                <x-presentation-blocks name="sidebar.about.before" />
                 <section class="sidebar-card bulletin">
-                    <p class="eyebrow">{{ __('site.shell.field_notes') }}</p>
-                    <h2>{{ __('site.shell.gates_open') }}</h2>
-                    <p>{{ __('site.shell.shell_intro') }}</p>
-                    <a class="text-link" href="{{ route('content.page', 'rules') }}">{{ __('site.shell.view_rules') }} <span aria-hidden="true">↗</span></a>
+                    <x-presentation-art name="sidebar.about" />
+                    <p class="eyebrow">{{ $appearance->text('shell.field_notes', __('site.shell.field_notes')) }}</p>
+                    <h2>{{ $appearance->text('shell.gates_open', __('site.shell.gates_open')) }}</h2>
+                    <p>{{ $appearance->text('shell.shell_intro', __('site.shell.shell_intro')) }}</p>
+                    <a class="text-link" href="{{ route('content.page', 'rules') }}">{{ $appearance->text('shell.view_rules', __('site.shell.view_rules')) }} <span aria-hidden="true">↗</span></a>
                 </section>
+                <x-presentation-blocks name="sidebar.about.after" />
+                <x-presentation-blocks name="sidebar.stats.before" />
                 <section class="sidebar-card">
-                    <div class="card-heading"><span class="status-dot"></span><span>{{ __('site.shell.at_glance') }}</span></div>
+                    <x-presentation-art name="sidebar.stats" />
+                    <div class="card-heading"><span class="status-dot"></span><span>{{ $appearance->text('shell.at_glance', __('site.shell.at_glance')) }}</span></div>
                     <dl class="stats-list">
                         <div><dt>Open stories</dt><dd>{{ number_format($atGlance['openStories']) }}</dd></div>
                         <div><dt>Living characters</dt><dd>{{ number_format($atGlance['livingCharacters']) }}</dd></div>
@@ -148,6 +151,7 @@
                         <div><dt>Lowest Clan</dt><dd>{{ $atGlance['lowestClan'] }} · {{ $atGlance['lowestCount'] }}</dd></div>
                     </dl>
                 </section>
+                <x-presentation-blocks name="sidebar.stats.after" />
             </aside>
         </div>
 

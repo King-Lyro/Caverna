@@ -55,6 +55,21 @@ final class CavernasRules
             ->all();
     }
 
+    public static function clanRoleCounts(): array
+    {
+        return Character::query()
+            ->whereIn('allegiance', ['ThunderClan', 'RiverClan', 'ShadowClan', 'WindClan'])
+            ->whereIn('status', ['active', 'inactive'])
+            ->whereIn('role', ['warrior', 'apprentice'])
+            ->selectRaw('allegiance, role, count(*) as population')
+            ->groupBy('allegiance', 'role')
+            ->get()->groupBy('allegiance')
+            ->map(fn ($rows) => [
+                'warrior' => (int) $rows->where('role', 'warrior')->sum('population'),
+                'apprentice' => (int) $rows->where('role', 'apprentice')->sum('population'),
+            ])->all();
+    }
+
     public static function clanCreationAllowed(string $allegiance): bool
     {
         if (! in_array($allegiance, ['ThunderClan', 'RiverClan', 'ShadowClan', 'WindClan'], true)) {

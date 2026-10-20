@@ -7,21 +7,13 @@
     <title>{{ $title ?? 'Staff CP' }} | {{ __('site.name') }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="staff-cp-body theme-{{ $siteTheme ?? 'fall' }}">
+<body class="staff-cp-body theme-{{ $siteTheme ?? 'fall' }}" style="{{ $appearance->style() }}">
     <div class="staff-cp-shell">
         <header class="staff-cp-topbar">
             <a class="staff-cp-brand" href="{{ route('staff.index') }}"><strong>Staff CP</strong><span>{{ __('site.name') }}</span></a>
             <div class="staff-cp-topbar-actions">
                 <a class="text-link" href="{{ route('home') }}">View site <span aria-hidden="true">↗</span></a>
-                @if (auth()->user()->isAdmin())
-                    <form method="POST" action="{{ route('theme.update', $siteTheme ?? 'fall') }}" class="theme-switcher">
-                        @csrf
-                        <label for="staff-theme-select">Theme</label>
-                        <select id="staff-theme-select" name="theme" onchange="this.form.action='/theme/'+this.value; this.form.submit()">
-                            @foreach (__('site.themes') as $themeKey => $themeLabel)<option value="{{ $themeKey }}" @selected(($siteTheme ?? 'fall') === $themeKey)>{{ $themeLabel }}</option>@endforeach
-                        </select>
-                    </form>
-                @endif
+                @include('partials.theme-switcher', ['id' => 'staff-theme-select'])
                 <form method="POST" action="{{ route('logout') }}">@csrf<button class="button" type="submit">Log out</button></form>
             </div>
         </header>
@@ -36,6 +28,7 @@
                     <a @class(['is-active' => request()->routeIs('staff.litters*')]) href="{{ route('staff.litters') }}">Litter review</a>
                     @if (auth()->user()->isAdmin())
                         <p class="eyebrow staff-cp-nav-heading">Administration</p>
+                        <a @class(['is-active' => request()->routeIs('admin.themes.*', 'admin.appearance.*')]) href="{{ route('admin.themes.index') }}">Themes & appearance</a>
                         <a @class(['is-active' => request()->routeIs('admin.users.*')]) href="{{ route('admin.users.index') }}">Users & permissions</a>
                         <a @class(['is-active' => request()->routeIs('staff.characters*')]) href="{{ route('staff.characters') }}">Character records</a>
                         <a @class(['is-active' => request()->routeIs('admin.content.categories')]) href="{{ route('admin.content.categories') }}">Forum categories</a>
@@ -57,6 +50,7 @@
             </aside>
 
             <main class="staff-cp-content">
+                @include('partials.theme-status')
                 @if (isset($pageError) || session('error') || (isset($errors) && $errors->any()))
                     <div class="page-error" role="alert"><strong>Unable to complete your request.</strong><p>{{ $pageError ?? session('error') ?? (isset($errors) ? $errors->first() : '') }}</p></div>
                 @endif

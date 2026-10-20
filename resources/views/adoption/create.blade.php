@@ -1,7 +1,7 @@
 @extends('layouts.cavernas')
 
 @section('content')
-<section class="form-panel adoption-create"><p class="eyebrow">Owner tools</p><h1>Create an<br><em>adoptable.</em></h1><p class="form-intro">Share a character with the community. Application listings let you review auditions; instant claims transfer the character as soon as another approved member claims them.</p>
+<section class="form-panel adoption-create"><x-presentation-heading eyebrow="Owner tools" :title="'Create an'.PHP_EOL.'adoptable.'" intro="Share a character with the community. Application listings let you review auditions; instant claims transfer the character as soon as another approved member claims them." />
 @if ($errors->any())<div class="form-alert" role="alert">{{ $errors->first() }}</div>@endif
 <form method="POST" action="{{ route('adoption.store') }}" class="cavernas-form">@csrf
 <label>Character<select name="character_id" id="adoption-character" required><option value="">Choose a character</option>@foreach ($characters as $character)<option value="{{ $character->id }}" data-allegiance="{{ $character->allegiance }}" @selected((string) old('character_id') === (string) $character->id)>{{ $character->name }} · {{ $character->allegiance }}</option>@endforeach</select></label>
@@ -26,7 +26,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const allegiance = document.getElementById('adoption-allegiance');
     const updateAllegiance = () => {
         allegiance.value = character.selectedOptions[0]?.dataset.allegiance || '';
-        allegiance.classList.toggle('riverclan-text', allegiance.value === 'RiverClan');
     };
     character.addEventListener('change', updateAllegiance);
     updateAllegiance();

@@ -2,8 +2,8 @@
 
 namespace Database\Seeders;
 
-use App\Models\ForumCategory;
 use App\Models\ForumBoard;
+use App\Models\ForumCategory;
 use App\Models\ShopItem;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
@@ -38,7 +38,6 @@ class DatabaseSeeder extends Seeder
 
         $this->call(MapForumSeeder::class);
 
-        ShopItem::create(['name' => 'Moss poultice', 'slug' => 'moss-poultice', 'description' => 'A small restorative bundle that can help return energy to a weary character.', 'cost' => 100, 'effect' => 'Energy restoration']);
         ShopItem::create(['name' => 'Energy return', 'slug' => 'energy-return', 'description' => 'Restores 10 energy to one character.', 'cost' => 20, 'effect' => 'Energy return']);
         ShopItem::create(['name' => 'Energy recover', 'slug' => 'energy-recover', 'description' => 'Restores one character to 100 energy.', 'cost' => 80, 'effect' => 'Energy recover']);
         ShopItem::create(['name' => 'Beyond-the-hedge pass', 'slug' => 'beyond-the-hedge-pass', 'description' => 'A staff-recognized item that allows an eligible character to come from beyond the clans.', 'cost' => 500, 'effect' => 'Outsider access']);

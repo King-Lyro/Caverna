@@ -1,16 +1,19 @@
 @extends('layouts.cavernas')
 
 @section('content')
+<x-presentation-blocks name="page.forum.board.before" />
 <section class="page-heading page-heading-theme compact-heading">
     <p class="eyebrow">{{ $board->category->name }}</p>
     <h1>{{ $board->name }}</h1>
     <p>{{ $board->description }}</p>
+    <x-presentation-art name="page.forum.board" />
     @auth
         @if (auth()->user()->status === 'approved' || auth()->user()->isStaff())@if (($board->slug !== 'announcements' && strtolower($board->name) !== 'announcements') || auth()->user()->isStaff())<a class="button button-primary" href="{{ route('forum.thread.create', $board) }}">Start a story <span aria-hidden="true">→</span></a>@endif @endif
     @else
         @if ($board->slug === 'advertisements' || strtolower($board->name) === 'advertisements')<a class="button button-primary" href="{{ route('forum.thread.create', $board) }}">Post an advertisement <span aria-hidden="true">→</span></a>@else<a class="text-link" href="{{ route('login') }}">Log in to write <span aria-hidden="true">↗</span></a>@endif
     @endauth
 </section>
+<x-presentation-blocks name="page.forum.board.after" />
 <section class="forum-category">
     <div class="forum-category-heading"><div><p class="eyebrow">{{ $board->is_ic ? 'In character' : 'Out of character' }}</p><h2>Open threads</h2></div><span>{{ $threads->total() }} stories</span></div>
     @forelse ($threads as $thread)

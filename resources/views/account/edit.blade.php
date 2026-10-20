@@ -2,8 +2,7 @@
 
 @section('content')
 <section class="form-panel account-panel">
-    <p class="eyebrow">Your account</p>
-    <h1>Make this place<br><em>feel like yours.</em></h1>
+    <x-presentation-heading eyebrow="Your account" :title="'Make this place'.PHP_EOL.'feel like yours.'" />
     @if (session('status'))<div class="form-success">{{ session('status') }}</div>@endif
     @if ($errors->any())<div class="form-alert" role="alert">{{ $errors->first() }}</div>@endif
     <form method="POST" action="{{ route('account.update') }}" enctype="multipart/form-data" class="cavernas-form">

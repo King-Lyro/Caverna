@@ -1,11 +1,7 @@
 @extends('layouts.cavernas')
 
 @section('content')
-<section class="page-heading page-heading-theme compact-heading">
-    <p class="eyebrow">{{ $board->name }}</p>
-    <h1>Begin a<br><em>new story.</em></h1>
-    <p>{{ $board->is_ic ? 'This is an in-character board. Your opening post must be at least 70 words.' : 'Start a conversation with the community.' }}</p>
-</section>
+<x-presentation-heading :eyebrow="$board->name" :title="'Begin a'.PHP_EOL.'new story.'" :intro="$board->is_ic ? 'This is an in-character board. Your opening post must be at least 70 words.' : 'Start a conversation with the community.'" class="compact-heading" />
 <section class="form-panel">
     @if ($errors->any())<div class="form-alert" role="alert">{{ $errors->first() }}</div>@endif
     <form method="POST" action="{{ route('forum.thread.store', $board) }}" class="cavernas-form" data-rich-form>

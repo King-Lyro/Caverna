@@ -1,11 +1,7 @@
 @extends('layouts.cavernas')
 
 @section('content')
-<section class="forum-heading compact-heading">
-	<p class="eyebrow">{{ __('site.shop.eyebrow') }}</p>
-	<h1>{!! nl2br(e(__('site.shop.title'))) !!}</h1>
-	<p>{{ __('site.shop.intro') }}</p>
-</section>
+<x-presentation-heading :eyebrow="__('site.shop.eyebrow')" :title="__('site.shop.title')" :intro="__('site.shop.intro')" class="compact-heading" />
 @if (session('status'))<div class="form-success">{{ session('status') }}</div>@endif
 <section class="shop-section" aria-label="Available items">
 	<div class="shop-section-heading">

@@ -2,8 +2,8 @@
 
 @section('content')
 <div class="sales-index-page">
-	<section class="page-heading page-heading-theme compact-heading"><p class="eyebrow">Character exchange</p><h1>Characters<br><em>for sale.</em></h1><p>Find a character whose story you want to carry forward. Listings are frozen until sold or withdrawn.</p>@auth<a class="button button-primary" href="{{ route('sales.create') }}">List a character <span aria-hidden="true">→</span></a>@endauth</section>
-	<article class="sales-intro guide-article"><h2>Find a new story</h2><p>Browse the characters available for purchase and read each profile before deciding. The listed price is paid in crickets; ownership transfers to the buyer when the purchase succeeds.</p></article>
+	<x-presentation-heading eyebrow="Character exchange" :title="'Characters'.PHP_EOL.'for sale.'" intro="Find a character whose story you want to carry forward. Listings are frozen until sold or withdrawn." class="compact-heading">@auth<a class="button button-primary" href="{{ route('sales.create') }}">{{ \App\Services\SiteAppearance::current()->text('page.sales.index.action.create', 'List a character') }} <span aria-hidden="true">→</span></a>@endauth</x-presentation-heading>
+	<article class="sales-intro guide-article">{!! \Illuminate\Support\Str::markdown(\App\Services\SiteAppearance::current()->text('sales.body', \App\Support\SitePresentation::fields('page:sales.index')['sales.body']['default']), ['html_input' => 'strip', 'allow_unsafe_links' => false]) !!}</article>
 	<section class="sales-listings adoption-listings" aria-label="Available character sales">
 		<div class="adoption-listings-heading"><h2>Available characters</h2><span>{{ $listings->total() }} {{ $listings->total() === 1 ? 'listing' : 'listings' }}</span></div>
 		<div class="adoption-grid">

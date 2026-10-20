@@ -2,9 +2,7 @@
 
 @section('content')
 <section class="form-panel">
-    <p class="eyebrow">{{ __('site.auth.register_eyebrow') }}</p>
-    <h1>{!! nl2br(e(__('site.auth.register_title'))) !!}</h1>
-    <p class="form-intro">{{ __('site.auth.register_intro') }}</p>
+    <x-presentation-heading :eyebrow="__('site.auth.register_eyebrow')" :title="__('site.auth.register_title')" :intro="__('site.auth.register_intro')" />
     @if ($errors->any())
         <div class="form-alert" role="alert">{{ $errors->first() }}</div>
     @endif

@@ -9,6 +9,7 @@ use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class ShopPurchaseTest extends TestCase
@@ -21,7 +22,7 @@ class ShopPurchaseTest extends TestCase
         $items = collect(['Flea treatment', 'Tick treatment', 'Illness treatment', 'Moonlit eyes trait'])
             ->map(function ($name) use ($member) {
                 $item = ShopItem::create([
-                    'name' => $name, 'slug' => \Illuminate\Support\Str::slug($name),
+                    'name' => $name, 'slug' => Str::slug($name),
                     'description' => 'Historic item.', 'cost' => 50, 'is_available' => true,
                 ]);
                 Inventory::create(['user_id' => $member->id, 'shop_item_id' => $item->id, 'quantity' => 2]);
@@ -36,6 +37,7 @@ class ShopPurchaseTest extends TestCase
             $this->assertDatabaseHas('inventories', ['shop_item_id' => $item->id, 'quantity' => 2]);
         }
     }
+
     public function test_delisted_items_remain_in_inventories_but_not_the_shop(): void
     {
         $member = User::factory()->create(['status' => 'approved']);
@@ -108,7 +110,7 @@ class ShopPurchaseTest extends TestCase
             $this->assertSame($cost, $item->cost);
             $this->assertStringContainsString($icon, $item->iconUrl());
         }
-        $this->assertNull(ShopItem::where('slug', 'moss-poultice')->firstOrFail()->iconUrl());
+        $this->assertDatabaseMissing('shop_items', ['slug' => 'moss-poultice']);
     }
 
     public function test_rare_eye_and_disability_items_save_member_chosen_details(): void

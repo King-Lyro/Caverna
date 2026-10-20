@@ -1,11 +1,7 @@
 @extends('layouts.cavernas')
 
 @section('content')
-<section class="page-heading page-heading-theme compact-heading">
-	<p class="eyebrow">The next generation</p>
-	<h1>Begin a<br><em>new litter.</em></h1>
-	<p>Send a breeding request between two approved, unfrozen characters. Pregnancy and any cricket charge begin only after the other owner accepts.</p>
-</section>
+<x-presentation-heading eyebrow="The next generation" :title="'Begin a'.PHP_EOL.'new litter.'" intro="Send a breeding request between two approved, unfrozen characters. Pregnancy and any cricket charge begin only after the other owner accepts." class="compact-heading" />
 <section class="form-panel">
 	<div class="breeding-rules"><p><strong>Before you begin</strong></p><ul><li>Both characters must be at least 12 moons old.</li><li>The female needs at least 50 energy.</li><li>The male needs at least 25 energy.</li><li>A female with a current apprentice cannot become pregnant.</li><li>Pregnancy lasts four weeks, with automatic birth at site midnight on the 29th calendar day.</li><li>The female becomes a Queen when the request is accepted and returns to her previous role once her kits are six moons old.</li><li>Nursing Queens cannot breed again until their kits are six moons old.</li><li>Mated characters have better litter-size odds.</li><li>Both owners must be different members.</li></ul><p class="breeding-cost-heading">Role costs</p><div class="breeding-costs"><span>Medicine Cat</span><strong>35,000 crickets</strong><span>Leader</span><strong>1,000 female / 500 male</strong><span>Deputy</span><strong>500 female / 250 male</strong><span>Other cats</span><strong>Free at 12+ moons to breed</strong></div></div>
 	@if ($errors->any())<div class="form-alert" role="alert">{{ $errors->first() }}</div>@endif

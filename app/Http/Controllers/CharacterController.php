@@ -30,13 +30,14 @@ class CharacterController extends Controller
         $clans = ['ThunderClan', 'RiverClan', 'ShadowClan', 'WindClan'];
         $populationCounts = array_replace(array_fill_keys($clans, 0), CavernasRules::clanPopulationCounts());
         $populationSexCounts = CavernasRules::clanPopulationBreakdown();
+        $populationRoleCounts = CavernasRules::clanRoleCounts();
         $characters = Character::query()->with('user')->whereIn('status', ['active', 'inactive'])->when($search !== '', function ($query) use ($search) {
             $query->where(function ($nested) use ($search) {
                 $nested->where('name', 'like', '%'.$search.'%')->orWhere('allegiance', 'like', '%'.$search.'%')->orWhereHas('user', fn ($user) => $user->where('name', 'like', '%'.$search.'%'));
             });
         })->latest()->paginate(24)->withQueryString();
 
-        return view('characters.index', compact('characters', 'search', 'clans', 'populationCounts', 'populationSexCounts'));
+        return view('characters.index', compact('characters', 'search', 'clans', 'populationCounts', 'populationSexCounts', 'populationRoleCounts'));
     }
 
     public function create(Request $request): View|RedirectResponse
@@ -395,6 +396,54 @@ class CharacterController extends Controller
         ]));
 
         return back()->with('status', 'Breeding request declined.');
+    }
+
+    public function removeMate(Character $character, Request $request): RedirectResponse
+    {
+        $this->ensureApproved($request);
+        DB::transaction(function () use ($character, $request): void {
+            $character = Character::whereKey($character->id)->lockForUpdate()->firstOrFail();
+            abort_unless($character->user_id === $request->user()->id, 403);
+            $mate = $character->mates()->first();
+            abort_unless($mate || $character->mate, 422, 'This character does not have a mate.');
+            if ($mate) {
+                $mate = Character::whereKey($mate->id)->lockForUpdate()->firstOrFail();
+                $character->mates()->detach($mate->id);
+                $mate->mates()->detach($character->id);
+                $mate->update(['mate' => null]);
+                $mate->user->notify(new SiteNotification([
+                    'title' => 'Mate relationship ended',
+                    'message' => $character->name.' is no longer mates with '.$mate->name.'.',
+                    'character_id' => $mate->id,
+                    'url' => route('characters.show', $mate),
+                ]));
+            }
+            $character->update(['mate' => null]);
+        });
+
+        return back()->with('status', 'Mate relationship removed. No approval is needed.');
+    }
+
+    public function removeMentor(CharacterRelationship $relationship, Request $request): RedirectResponse
+    {
+        $this->ensureApproved($request);
+        DB::transaction(function () use ($relationship, $request): void {
+            $relationship = CharacterRelationship::whereKey($relationship->id)->lockForUpdate()->firstOrFail();
+            $apprentice = $relationship->character;
+            $mentor = $relationship->relatedCharacter;
+            abort_unless(in_array($request->user()->id, [$apprentice->user_id, $mentor->user_id], true), 403);
+            abort_unless($relationship->type === 'mentor' && $relationship->status === 'accepted', 422, 'This is not an active mentorship.');
+            $other = $apprentice->user_id === $request->user()->id ? $mentor : $apprentice;
+            $relationship->delete();
+            $other->user->notify(new SiteNotification([
+                'title' => 'Mentorship ended',
+                'message' => $mentor->name.' is no longer mentoring '.$apprentice->name.'.',
+                'character_id' => $other->id,
+                'url' => route('characters.show', $other),
+            ]));
+        });
+
+        return back()->with('status', 'Mentorship removed. No approval is needed.');
     }
 
     public function requestMentor(Character $character, Request $request): RedirectResponse

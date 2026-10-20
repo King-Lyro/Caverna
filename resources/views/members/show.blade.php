@@ -2,14 +2,11 @@
 
 @section('content')
 <section class="member-profile-panel">
+    <x-presentation-decoration />
     <div class="member-profile-heading"><p class="eyebrow">User profile</p>@auth @if (auth()->id() === $member->id)<a class="text-link" href="{{ route('account.edit') }}">Edit profile</a>@endif @endauth</div>
     <header class="member-profile-header">
         <div class="member-profile-avatar">
-            @if ($member->avatar_path)
-                <img src="{{ asset('storage/'.$member->avatar_path) }}" alt="{{ $member->name }} avatar">
-            @else
-                <span>{{ strtoupper(substr($member->name, 0, 1)) }}</span>
-            @endif
+            <img src="{{ $member->avatarUrl() }}" alt="{{ $member->name }} avatar">
         </div>
         <div class="member-profile-identity">
             <div class="member-profile-name"><h1>{{ $member->name }}</h1><span class="member-role">{{ $member->isAdmin() ? 'Administrator' : ($member->isModerator() ? 'Moderator' : 'Member') }}</span>@if ($member->is_absent)<span class="member-role">Away</span>@endif</div>

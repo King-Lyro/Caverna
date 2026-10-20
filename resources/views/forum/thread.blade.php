@@ -1,12 +1,15 @@
 @extends('layouts.cavernas')
 
 @section('content')
+<x-presentation-blocks name="page.forum.thread.before" />
 <section class="page-heading page-heading-theme compact-heading thread-page-heading">
     <p class="eyebrow">{{ $thread->board->category->name }} <span aria-hidden="true">·</span> {{ $thread->board->name }}</p>
     <h1>{{ $thread->title }}</h1>
+    <x-presentation-art name="page.forum.thread" />
     <p>Started by @if ($thread->author)<a href="{{ route('members.show', $thread->author) }}">{{ $thread->author->name }}</a>@else{{ $thread->guest_name }} <span class="guest-label">Guest</span>@endif · {{ $thread->created_at->format('M j, Y') }}@if ($thread->is_pinned) · Pinned @endif @if ($thread->is_locked) · Locked @endif</p>
     <a class="text-link" href="{{ route('forum.board', $thread->board) }}">Back to board <span aria-hidden="true">↗</span></a>
 </section>
+<x-presentation-blocks name="page.forum.thread.after" />
 @if (session('status'))<div class="form-success">{{ session('status') }}</div>@endif
 @auth
     @if (auth()->user()->isStaff())
@@ -29,8 +32,10 @@
         <article class="thread-post">
             <aside class="thread-author">
                 <div class="thread-avatar">
-                    @if ($characterImage)
+                    @if ($post->is_ic && $characterImage)
                         <img src="{{ filter_var($characterImage, FILTER_VALIDATE_URL) ? $characterImage : asset('storage/'.$characterImage) }}" alt="{{ $post->character->name }} portrait">
+                    @elseif (! $post->is_ic)
+                        <img src="{{ $post->author?->avatarUrl() ?? asset('images/profile_default.png') }}" alt="{{ $post->author?->name ?? $post->guest_name ?? 'Guest' }} avatar">
                     @else
                         <span>{{ strtoupper(substr($post->character?->name ?? $post->author?->name ?? $post->guest_name ?? 'G', 0, 1)) }}</span>
                     @endif
