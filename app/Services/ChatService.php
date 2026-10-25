@@ -80,6 +80,7 @@ class ChatService
                 'id' => $message->id,
                 'name' => $message->user?->name ?? $message->author_name,
                 'profile_url' => $message->user ? route('members.show', $message->user) : null,
+                'avatar_url' => $message->is_guest ? null : $message->user?->avatarUrl(),
                 'badge' => $message->is_guest ? __('chat.guest') : ($message->user?->isStaff() ? __('chat.staff') : __('chat.member')),
                 'body' => $message->body,
                 'created_at' => $message->created_at->toIso8601String(),

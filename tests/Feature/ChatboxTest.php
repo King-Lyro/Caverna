@@ -28,9 +28,10 @@ class ChatboxTest extends TestCase
         $response = $this->withCookie('chat_guest', str_repeat('a', 64))
             ->postJson(route('chat.store'), ['name' => 'Visitor', 'body' => 'Hello!']);
         $response->assertCreated()->assertJsonPath('messages.0.name', 'Visitor')
-            ->assertJsonPath('messages.0.badge', 'Guest')->assertJsonPath('messages.0.profile_url', null);
+            ->assertJsonPath('messages.0.badge', 'Guest')->assertJsonPath('messages.0.profile_url', null)
+            ->assertJsonPath('messages.0.avatar_url', null);
         $this->assertStringContainsString('no-store', $response->headers->get('Cache-Control'));
-        $this->assertSame(['id', 'name', 'profile_url', 'badge', 'body', 'created_at'], array_keys($response->json('messages.0')));
+        $this->assertSame(['id', 'name', 'profile_url', 'avatar_url', 'badge', 'body', 'created_at'], array_keys($response->json('messages.0')));
         $message = ChatMessage::firstOrFail();
         $this->assertNotNull($message->guest_hash);
         $this->assertNotNull($message->ip_hash);
@@ -53,6 +54,20 @@ class ChatboxTest extends TestCase
         $this->assertDatabaseHas('chat_messages', ['user_id' => $member->id, 'is_guest' => false]);
         $member->forceFill(['role' => 'moderator'])->save();
         $this->getJson(route('chat.index'))->assertJsonPath('messages.0.badge', 'Staff');
+    }
+
+    public function test_member_chat_avatar_uses_current_profile_avatar_and_default_and_ignores_posted_avatar(): void
+    {
+        $member = User::factory()->create(['avatar_path' => 'avatars/member.png']);
+        $this->actingAs($member)->postJson(route('chat.store'), [
+            'body' => 'Hello', 'avatar_url' => 'https://example.com/forged.png',
+        ])->assertCreated()->assertJsonPath('messages.0.avatar_url', $member->avatarUrl());
+        $member->update(['avatar_path' => 'avatars/updated.png']);
+        $this->getJson(route('chat.index'))->assertJsonPath('messages.0.avatar_url', $member->avatarUrl());
+        $member->update(['avatar_path' => null]);
+        $this->getJson(route('chat.index'))->assertJsonPath('messages.0.avatar_url', asset('images/profile_default.png'));
+        $member->delete();
+        $this->getJson(route('chat.index'))->assertJsonPath('messages.0.avatar_url', null);
     }
 
     public function test_validation_rejects_wrong_types_blank_content_and_over_limits(): void

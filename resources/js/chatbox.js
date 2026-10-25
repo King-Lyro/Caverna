@@ -54,6 +54,18 @@ if (box) {
 			const row = document.createElement('li');
 			row.dataset.messageId = message.id;
 			const heading = document.createElement('header');
+			if (message.avatar_url) {
+				const avatar = document.createElement('img');
+				avatar.className = 'chatbox-avatar';
+				avatar.src = message.avatar_url;
+				avatar.alt = '';
+				avatar.width = 32;
+				avatar.height = 32;
+				avatar.loading = 'lazy';
+				heading.append(avatar);
+			}
+			const metadata = document.createElement('div');
+			metadata.className = 'chatbox-message-meta';
 			const author = document.createElement(message.profile_url ? 'a' : 'strong');
 			author.textContent = message.name;
 			if (message.profile_url) author.href = message.profile_url;
@@ -64,7 +76,8 @@ if (box) {
 			const date = new Date(message.created_at);
 			time.textContent = date.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 			time.title = date.toLocaleString();
-			heading.append(author, badge, time);
+			metadata.append(author, badge);
+			heading.append(metadata, time);
 			const body = document.createElement('p');
 			body.className = 'chatbox-body';
 			body.textContent = message.body;

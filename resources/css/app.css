@@ -16,7 +16,9 @@
 .chatbox textarea { resize: vertical; }
 .chatbox-messages { list-style: none; padding: 0; margin: 12px 0; max-height: 340px; overflow-y: auto; overflow-wrap: anywhere; overscroll-behavior: contain; }
 .chatbox-messages li { padding: 10px 0; border-bottom: 1px solid var(--line); }
-.chatbox-messages header { display: flex; flex-wrap: wrap; gap: 5px; align-items: baseline; font-size: 12px; }
+.chatbox-messages header { display: flex; flex-wrap: wrap; gap: 5px 8px; align-items: flex-start; font-size: 12px; }
+.chatbox-message-meta { display: flex; flex: 1; flex-wrap: wrap; gap: 5px; align-items: baseline; min-width: 0; }
+.chatbox-messages .chatbox-avatar { flex: 0 0 32px; width: 32px; height: 32px; border-radius: 4px; object-fit: cover; }
 .chatbox-messages small, .chatbox-messages time { color: var(--muted); font-size: 10px; }
 .chatbox-messages time { flex-basis: 100%; }
 .chatbox .chatbox-body, .chatbox-body { white-space: pre-wrap; overflow-wrap: anywhere; }
