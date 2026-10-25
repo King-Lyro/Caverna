@@ -8,6 +8,9 @@ use App\Models\SidebarModule;
 use App\Models\WorldPage;
 use App\Services\SiteAppearance;
 use App\Support\CavernasRules;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -27,6 +30,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        RateLimiter::for('chat-read', fn (Request $request) => Limit::perMinute(120)->by($request->ip()));
+        RateLimiter::for('chat-write', fn (Request $request) => Limit::perMinute(20)->by($request->ip()));
+
         View::composer(['layouts.cavernas', 'layouts.staff', 'admin.themes.*'], function ($view): void {
             $appearance = SiteAppearance::current();
             $view->with(['siteTheme' => $appearance->key, 'appearance' => $appearance]);

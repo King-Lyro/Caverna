@@ -93,6 +93,7 @@ class SitePresentation
             $groups = [
                 'welcome' => ['Welcome card', 'Left sidebar: Welcome to Cavernas / Find your way in.', ['shell.begin_here', 'shell.find_way', 'shell.guide_intro', 'shell.read_guide']],
                 'paths' => ['Clan & outsider links', 'Left sidebar: headings above the live clan and outsider navigation. Names and destinations stay unchanged.', ['shell.four_paths', 'shell.outsiders']],
+                'chat' => ['Chatbox', 'Left sidebar: live chat below the clan and outsider links. Customize its heading and artwork or add content around it; messages and moderation stay unchanged.', ['shell.chat_title']],
                 'about' => ['About the site', 'Right sidebar: About Cavernas / The gates are open.', ['shell.field_notes', 'shell.gates_open', 'shell.shell_intro', 'shell.view_rules']],
                 'stats' => ['Live site statistics', 'Right sidebar: At a glance. You can change its heading and add artwork, but the numbers stay live.', ['shell.at_glance']],
             ];
@@ -143,6 +144,7 @@ class SitePresentation
             'shell.field_notes' => 'Small label', 'shell.gates_open' => 'About heading',
             'shell.shell_intro' => 'About paragraph', 'shell.view_rules' => 'Rules link text',
             'shell.at_glance' => 'Statistics heading', 'map.image' => 'Clickable territory map',
+            'shell.chat_title' => 'Chatbox heading',
         ];
 
         return $labels[$key] ?? match (true) {
@@ -205,13 +207,14 @@ class SitePresentation
             foreach (['begin_here', 'find_way', 'guide_intro', 'read_guide', 'four_paths', 'field_notes', 'gates_open', 'shell_intro', 'view_rules', 'at_glance'] as $key) {
                 $fields['shell.'.$key] = $text(ucwords(str_replace('_', ' ', $key)), __('site.shell.'.$key));
             }
-            foreach (['welcome', 'paths', 'about', 'stats'] as $key) {
+            foreach (['welcome', 'paths', 'chat', 'about', 'stats'] as $key) {
                 $fields['sidebar.'.$key.'.image'] = $image(ucfirst($key).' artwork');
                 $fields['sidebar.'.$key.'.alt'] = $text(ucfirst($key).' alternative text');
                 $fields['sidebar.'.$key.'.before'] = $blocks('Before '.ucfirst($key));
                 $fields['sidebar.'.$key.'.after'] = $blocks('After '.ucfirst($key));
             }
             $fields['shell.outsiders'] = $text('Outsider section heading', __('site.nav.outsiders'));
+            $fields['shell.chat_title'] = $text('Chatbox heading', __('chat.title'));
             if (Schema::hasTable('sidebar_modules')) {
                 foreach (SidebarModule::orderBy('id')->get() as $module) {
                     $prefix = 'module.'.$module->id;

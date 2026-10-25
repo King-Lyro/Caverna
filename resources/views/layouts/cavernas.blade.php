@@ -114,6 +114,7 @@
                     @endif
                 </section>
                 <x-presentation-blocks name="sidebar.paths.after" />
+                @include('partials.chatbox')
             </aside>
 
             <main class="main-content">

@@ -1,4 +1,5 @@
 import './bootstrap';
+import './chatbox';
 import '@toast-ui/editor/dist/toastui-editor.css';
 
 const oldInputElement = document.getElementById('form-old-input');
@@ -24,6 +25,7 @@ if (oldInputElement) {
 
 document.addEventListener('submit', async (event) => {
 	const form = event.target;
+	if (form instanceof HTMLFormElement && form.hasAttribute('data-chat-form')) return;
 	if (!(form instanceof HTMLFormElement) || event.defaultPrevented || form.method.toLowerCase() === 'get' || form.target) return;
 	const previewInNewTab = event.submitter?.hasAttribute('data-preview-new-tab');
 	if (event.submitter?.formTarget && !previewInNewTab) return;

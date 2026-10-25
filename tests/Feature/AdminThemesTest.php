@@ -222,6 +222,71 @@ class AdminThemesTest extends TestCase
         $this->get(route('home'))->assertSee('A shared season');
     }
 
+    public function test_chat_sidebar_has_builtin_customization_and_preserves_live_chat_in_preview(): void
+    {
+        Storage::fake('public');
+        $theme = $this->theme();
+        $this->actingAs($this->admin());
+        $this->get(route('admin.themes.edit', [$theme, 'group' => 'sidebars']))->assertOk()
+            ->assertSee('Chatbox heading')->assertSee('sidebar.chat.image')->assertSee('sidebar.chat.alt')
+            ->assertSee('sidebar.chat.before')->assertSee('sidebar.chat.after');
+        $this->get(route('admin.appearance.edit', ['group' => 'sidebars']))->assertOk()->assertSee('shell.chat_title');
+        $this->patch(route('admin.themes.presentation', $theme), [
+            'form_complete' => 1, 'group' => 'sidebars',
+            'fields' => $this->fields('sidebars', [
+                'shell.chat_title' => ['mode' => 'custom', 'value' => 'Campfire conversations'],
+                'sidebar.chat.image' => ['mode' => 'custom', 'image' => UploadedFile::fake()->image('chat.png', 320, 100)],
+                'sidebar.chat.alt' => ['mode' => 'custom', 'value' => 'Campfire artwork'],
+                'sidebar.chat.before' => ['mode' => 'custom', 'blocks' => [['title' => 'Before campfire', 'body' => 'Welcome, travelers.']]],
+                'sidebar.chat.after' => ['mode' => 'custom', 'blocks' => [['title' => 'After campfire', 'body' => 'Follow our community rules.']]],
+            ]),
+        ])->assertSessionHasNoErrors()->assertRedirect();
+        $path = $theme->fresh()->presentation['sidebar.chat.image'];
+        Storage::disk('public')->assertExists($path);
+        $this->get(route('home'))->assertSee('data-chatbox', false)->assertDontSee('Campfire conversations');
+        $this->post(route('admin.themes.preview', $theme))->assertRedirect();
+        $this->get(route('home'))->assertOk()
+            ->assertSeeInOrder(['clan-list', 'Before campfire', 'Campfire artwork', 'Campfire conversations', 'data-chat-form', 'After campfire'], false)
+            ->assertSee(Storage::disk('public')->url($path))
+            ->assertSee('action="'.route('chat.store').'"', false)
+            ->assertSee('data-feed="'.route('chat.index').'"', false);
+        $this->get(route('forum'))->assertOk()->assertSee('Campfire conversations')->assertSee('Campfire artwork');
+        $this->assertDatabaseHas('site_settings', ['key' => 'chat_guest_posting', 'value' => '1']);
+        $this->assertDatabaseHas('site_settings', ['key' => 'theme', 'value' => 'fall']);
+    }
+
+    public function test_chat_sidebar_inherits_defaults_and_can_hide_or_reset_individual_presentation_fields(): void
+    {
+        $theme = $this->theme();
+        $this->actingAs($this->admin());
+        $this->patch(route('admin.appearance.update'), [
+            'form_complete' => 1, 'group' => 'sidebars', 'fields' => $this->fields('sidebars', [
+                'shell.chat_title' => ['mode' => 'custom', 'value' => 'Shared chat heading'],
+                'sidebar.chat.before' => ['mode' => 'custom', 'blocks' => [['title' => 'Shared chat notice']]],
+            ]),
+        ])->assertSessionHasNoErrors();
+        $this->post(route('theme.update', $theme->key))->assertRedirect();
+        $this->get(route('home'))->assertSee('Shared chat heading')->assertSee('Shared chat notice');
+        $this->patch(route('admin.themes.presentation', $theme), [
+            'form_complete' => 1, 'group' => 'sidebars', 'fields' => $this->fields('sidebars', [
+                'shell.chat_title' => ['mode' => 'custom', 'value' => 'Theme chat heading'],
+                'sidebar.chat.before' => ['mode' => 'hidden'],
+            ]),
+        ])->assertSessionHasNoErrors();
+        $this->get(route('home'))->assertSee('Theme chat heading')->assertDontSee('Shared chat heading')->assertDontSee('Shared chat notice');
+        $this->patch(route('admin.themes.presentation', $theme), [
+            'form_complete' => 1, 'group' => 'sidebars', 'fields' => $this->fields('sidebars', [
+                'shell.chat_title' => ['mode' => 'hidden'],
+            ]),
+        ])->assertSessionHasNoErrors();
+        $this->get(route('home'))->assertSee('data-chatbox', false)->assertSee('data-chat-form', false)
+            ->assertDontSee('Shared chat heading')->assertDontSee('Theme chat heading');
+        $this->patch(route('admin.themes.presentation', $theme), [
+            'form_complete' => 1, 'group' => 'sidebars', 'fields' => $this->fields('sidebars', []),
+        ])->assertSessionHasNoErrors();
+        $this->get(route('home'))->assertSee('Shared chat heading')->assertSee('Shared chat notice');
+    }
+
     public function test_preview_is_admin_session_only_and_dashboard_member_link_is_preserved(): void
     {
         $theme = $this->theme(['home.hero_title' => 'Preview artwork event', 'page.dashboard.title' => 'Hello,']);

@@ -25,6 +25,7 @@
                     <a @class(['is-active' => request()->routeIs('staff.index')]) href="{{ route('staff.index') }}">Overview</a>
                     <a @class(['is-active' => request()->routeIs('staff.applications*')]) href="{{ route('staff.applications') }}">Applications</a>
                     <a @class(['is-active' => request()->routeIs('staff.reports*')]) href="{{ route('staff.reports') }}">Reports</a>
+                    <a @class(['is-active' => request()->routeIs('staff.chat.*')]) href="{{ route('staff.chat.index') }}">{{ __('chat.title') }}</a>
                     <a @class(['is-active' => request()->routeIs('staff.litters*')]) href="{{ route('staff.litters') }}">Litter review</a>
                     @if (auth()->user()->isAdmin())
                         <p class="eyebrow staff-cp-nav-heading">Administration</p>

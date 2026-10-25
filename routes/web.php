@@ -19,6 +19,8 @@ use App\Http\Controllers\AdoptionController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BreedingController;
 use App\Http\Controllers\CharacterController;
+use App\Http\Controllers\ChatController;
+use App\Http\Controllers\ChatModerationController;
 use App\Http\Controllers\ContentController;
 use App\Http\Controllers\CricketLedgerController;
 use App\Http\Controllers\DashboardController;
@@ -41,6 +43,8 @@ Route::get('/', function () {
 })->name('home');
 
 Route::get('/forum', [ForumController::class, 'index'])->name('forum');
+Route::get('/chat/messages', [ChatController::class, 'index'])->middleware('throttle:chat-read')->name('chat.index');
+Route::post('/chat/messages', [ChatController::class, 'store'])->middleware('throttle:chat-write')->name('chat.store');
 Route::get('/forum/boards/{board:slug}', [ForumController::class, 'board'])->name('forum.board');
 Route::get('/forum/threads/{thread:slug}', [ForumController::class, 'thread'])->name('forum.thread');
 Route::get('/characters', [CharacterController::class, 'index'])->name('characters');
@@ -126,6 +130,11 @@ Route::get('/{page}', [ContentController::class, 'show'])->whereIn('page', ['rul
 Route::post('/theme/{theme}', [ThemeController::class, 'update'])->middleware(['auth', 'admin'])->name('theme.update');
 
 Route::middleware(['auth', 'staff'])->prefix('staff')->name('staff.')->group(function () {
+    Route::get('/chat', [ChatModerationController::class, 'index'])->name('chat.index');
+    Route::delete('/chat/messages/{message}', [ChatModerationController::class, 'destroy'])->name('chat.destroy');
+    Route::post('/chat/messages/{message}/mute', [ChatModerationController::class, 'mute'])->name('chat.mute');
+    Route::patch('/chat/mutes/{mute}', [ChatModerationController::class, 'unmute'])->name('chat.unmute');
+    Route::patch('/chat/settings', [ChatModerationController::class, 'settings'])->middleware('admin')->name('chat.settings');
     Route::get('/', StaffControlPanelController::class)->name('index');
     Route::get('/applications', [StaffApplicationController::class, 'index'])->name('applications');
     Route::patch('/applications/{user}/approve', [StaffApplicationController::class, 'approve'])->name('applications.approve');
