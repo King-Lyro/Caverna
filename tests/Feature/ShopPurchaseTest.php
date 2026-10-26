@@ -280,8 +280,14 @@ class ShopPurchaseTest extends TestCase
         $inventory = Inventory::create(['user_id' => $user->id, 'shop_item_id' => $item->id, 'quantity' => 1]);
         $character = Character::create(['user_id' => $user->id, 'name' => 'Ash', 'sex' => 'female', 'age_moons' => 12, 'allegiance' => 'ThunderClan', 'looks' => 'Bright coat.', 'appearance' => 'Appearance.', 'personality' => 'Personality.', 'history' => 'History.', 'energy' => 100, 'status' => 'active']);
 
+        $this->assertSame(asset('images/icons/time_freeze.png'), $item->iconUrl());
+        $this->actingAs($user)->get(route('shop'))->assertOk()->assertSee('time_freeze.png');
+        $this->get(route('inventory'))->assertOk()->assertSee('time_freeze.png');
+        $this->get(route('characters.create'))->assertOk()->assertSee('time_freeze.png');
+        $this->get(route('characters.edit', $character))->assertOk()->assertSee('time_freeze.png');
         $this->actingAs($user)->post(route('inventory.use', $inventory), ['character_id' => $character->id])->assertRedirect();
         $this->assertDatabaseHas('characters', ['id' => $character->id, 'is_frozen' => true, 'frozen_reason' => 'item']);
+        $this->get(route('characters.show', $character))->assertOk()->assertSee('time_freeze.png');
         $applied = $character->appliedItems()->firstOrFail();
         $this->actingAs($user)->delete(route('characters.items.destroy', [$character, $applied]))->assertRedirect();
         $this->assertFalse($character->fresh()->is_frozen);

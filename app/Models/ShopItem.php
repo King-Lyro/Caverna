@@ -19,6 +19,7 @@ class ShopItem extends Model
             'Disability' => 'dsiability.png',
             'Energy return' => 'energy_return.png',
             'Energy recover' => 'energy_recover.png',
+            'Time freeze' => 'time_freeze.png',
             'Outsider access' => 'outsider_allegiance.png',
             'Male calico' => 'male_calico.png',
             'Chimera/mosaicism' => 'chimera_mosaicism.png',
